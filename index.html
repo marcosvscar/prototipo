@@ -1483,55 +1483,46 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
 
 <!-- MODAL: Empresa -->
 <div class="overlay" id="emp-modal-overlay">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-header">
-      <h3 id="emp-modal-title">Nova Empresa</h3>
-      <button class="modal-close" onclick="closeEmpModal()">✕</button>
+  <div class="modal" style="width:540px">
+    <h3 id="emp-modal-title">Nova Empresa</h3>
+
+    <!-- Status toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button id="em-status-ativa"   class="toggle-btn active" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEmpStatus('Ativa')">✅ Ativa</button>
+      <button id="em-status-inativa" class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEmpStatus('Inativa')">⏸ Inativa</button>
     </div>
-    <div class="form-grid2">
-      <div class="form-group" style="grid-column:span 2">
-        <label>Razão Social</label>
-        <input id="em-razao" type="text" placeholder="Ex.: Lima Contabilidade Ltda">
-      </div>
-      <div class="form-group">
-        <label>Código interno</label>
+    <input type="hidden" id="em-status" value="Ativa">
+
+    <div class="form-grid">
+      <div class="fg">
+        <label>Código *</label>
         <input id="em-codigo" type="text" placeholder="Ex.: LIMA">
       </div>
-      <div class="form-group">
-        <label>CNPJ</label>
-        <input id="em-cnpj" type="text" placeholder="00.000.000/0000-00">
+      <div class="fg">
+        <label>CNPJ <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <input id="em-cnpj" type="text" placeholder="00.000.000/0001-00">
       </div>
-      <div class="form-group">
-        <label>Grupo econômico</label>
-        <input id="em-grupo" type="text" placeholder="Ex.: Grupo Lima">
+      <div class="fg full">
+        <label>Razão Social *</label>
+        <input id="em-razao" type="text" placeholder="Ex.: Lima Contabilidade Ltda">
       </div>
-      <div class="form-group">
-        <label>Gestor Responsável</label>
-        <select id="em-gestor"></select>
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="em-status">
-          <option value="Ativa">Ativa</option>
-          <option value="Inativa">Inativa</option>
-        </select>
-      </div>
-      <div class="form-group" style="grid-column:span 2">
+      <div class="fg full">
         <label>Prazo de fechamento contábil</label>
         <div style="display:flex;gap:10px;align-items:center">
-          <select id="em-tipo-fechamento" onchange="toggleFechamentoLabel()" style="font-size:15px;padding:10px 12px;border:1px solid #dde3ea;border-radius:8px;flex:1">
+          <select id="em-tipo-fechamento" onchange="toggleFechamentoLabel()" style="flex:1;border:1px solid #dde3ea;padding:9px 12px;border-radius:8px;font-size:13px;color:var(--text);outline:none">
             <option value="dia_fixo">Dia fixo do mês seguinte</option>
             <option value="dia_util">Nº dia útil do mês seguinte</option>
           </select>
           <input id="em-valor-fechamento" type="number" min="1" max="31" value="10"
-            style="width:70px;font-size:15px;padding:10px 12px;border:1px solid #dde3ea;border-radius:8px;text-align:center">
+            style="width:72px;border:1px solid #dde3ea;padding:9px 12px;border-radius:8px;font-size:13px;text-align:center;outline:none">
           <span id="em-fechamento-label" style="font-size:13px;color:var(--muted);white-space:nowrap">º dia</span>
         </div>
       </div>
     </div>
+
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeEmpModal()">Cancelar</button>
-      <button class="btn-primary" onclick="saveEmp()">Salvar</button>
+      <button class="btn-primary" onclick="saveEmp()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -3471,31 +3462,32 @@ function openEmpModal(idx){
   const e = (idx !== undefined && idx !== null) ? empresas_cad[idx] : null;
   editEmpId = e ? e._sbId : null;
   document.getElementById('emp-modal-title').textContent = e ? 'Editar Empresa' : 'Nova Empresa';
-  document.getElementById('em-razao').value            = e?.razao            ||'';
-  document.getElementById('em-codigo').value           = e?.codigo           ||'';
-  document.getElementById('em-cnpj').value             = e?.cnpj             ||'';
-  document.getElementById('em-grupo').value            = e?.grupo            ||'';
-  document.getElementById('em-status').value           = e?.status           ||'Ativa';
-  document.getElementById('em-tipo-fechamento').value  = e?.tipoFechamento   ||'dia_fixo';
-  document.getElementById('em-valor-fechamento').value = e?.valorFechamento  ||10;
+  document.getElementById('em-razao').value            = e?.razao          ||'';
+  document.getElementById('em-codigo').value           = e?.codigo         ||'';
+  document.getElementById('em-cnpj').value             = e?.cnpj           ||'';
+  document.getElementById('em-tipo-fechamento').value  = e?.tipoFechamento ||'dia_fixo';
+  document.getElementById('em-valor-fechamento').value = e?.valorFechamento||10;
+  setEmpStatus(e?.status||'Ativa');
   toggleFechamentoLabel();
-  const gestores = usuarios.filter(u=>u.perfil==='Gestor'||u.perfil==='Master');
-  document.getElementById('em-gestor').innerHTML = gestores.map(g=>`<option ${e?.gestor===g.nome?'selected':''}>${g.nome}</option>`).join('');
   document.getElementById('emp-modal-overlay').classList.add('open');
 }
 function closeEmpModal(){ document.getElementById('emp-modal-overlay').classList.remove('open'); }
+function setEmpStatus(val){
+  document.getElementById('em-status').value = val;
+  document.getElementById('em-status-ativa').classList.toggle('active', val==='Ativa');
+  document.getElementById('em-status-inativa').classList.toggle('active', val==='Inativa');
+}
 async function saveEmp(){
   const razao          = document.getElementById('em-razao').value.trim();
   const codigo         = document.getElementById('em-codigo').value.trim().toUpperCase();
   const cnpj           = document.getElementById('em-cnpj').value.trim();
-  const grupo          = document.getElementById('em-grupo').value.trim();
   const status         = document.getElementById('em-status').value;
   const tipoFechamento = document.getElementById('em-tipo-fechamento').value;
   const valorFechamento= parseInt(document.getElementById('em-valor-fechamento').value)||10;
   if(!razao||!codigo){ alert('Preencha razão social e código.'); return; }
 
   const payload = {
-    razao_social: razao, codigo, cnpj: cnpj||null, grupo: grupo||null,
+    razao_social: razao, codigo, cnpj: cnpj||null,
     status, tipo_fechamento: tipoFechamento, valor_fechamento: valorFechamento,
     cliente_id: _clienteId
   };

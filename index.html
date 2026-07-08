@@ -3453,23 +3453,23 @@ function encerrarCobertura(id){
 function renderEmpresas(){
   document.getElementById('cad-emp-count').textContent = empresas_cad.length;
   const gestores = usuarios.filter(u=>u.perfil==='Gestor'||u.perfil==='Master');
-  document.getElementById('cad-emp-tbody').innerHTML = empresas_cad.map(e=>`<tr>
+  document.getElementById('cad-emp-tbody').innerHTML = empresas_cad.map((e,i)=>`<tr>
     <td style="font-weight:600">${e.razao}</td>
     <td><span style="font-weight:700;color:var(--primary)">${e.codigo}</span></td>
-    <td style="color:var(--muted)">${e.cnpj}</td>
-    <td>${e.grupo}</td>
-    <td>${e.gestor}</td>
+    <td style="color:var(--muted)">${e.cnpj||'—'}</td>
+    <td>${e.grupo||'—'}</td>
+    <td>${e.gestor||'—'}</td>
     <td><span class="${e.status==='Ativa'?'badge-status-ativo':'badge-status-inativo'}">${e.status}</span></td>
     <td style="display:flex;gap:6px">
-      <button class="cad-action-btn" onclick="openEmpModal(${e.id})">✏ Editar</button>
-      <button class="cad-action-btn danger" onclick="deleteEmp(${e.id})">🗑</button>
+      <button class="cad-action-btn" onclick="openEmpModal(${i})">✏ Editar</button>
+      <button class="cad-action-btn danger" onclick="deleteEmp(${i})">🗑</button>
     </td>
   </tr>`).join('');
 }
 let editEmpId = null;
-function openEmpModal(id){
-  editEmpId = id||null;
-  const e = id ? empresas_cad.find(x=>x.id===id) : null;
+function openEmpModal(idx){
+  const e = (idx !== undefined && idx !== null) ? empresas_cad[idx] : null;
+  editEmpId = e ? e._sbId : null;
   document.getElementById('emp-modal-title').textContent = e ? 'Editar Empresa' : 'Nova Empresa';
   document.getElementById('em-razao').value            = e?.razao            ||'';
   document.getElementById('em-codigo').value           = e?.codigo           ||'';
@@ -3481,31 +3481,51 @@ function openEmpModal(id){
   toggleFechamentoLabel();
   const gestores = usuarios.filter(u=>u.perfil==='Gestor'||u.perfil==='Master');
   document.getElementById('em-gestor').innerHTML = gestores.map(g=>`<option ${e?.gestor===g.nome?'selected':''}>${g.nome}</option>`).join('');
-  document.getElementById('emp-modal-overlay').style.display='flex';
+  document.getElementById('emp-modal-overlay').classList.add('open');
 }
-function closeEmpModal(){ document.getElementById('emp-modal-overlay').style.display='none'; }
-function saveEmp(){
-  const razao  = document.getElementById('em-razao').value.trim();
-  const codigo = document.getElementById('em-codigo').value.trim().toUpperCase();
-  const cnpj   = document.getElementById('em-cnpj').value.trim();
-  const grupo  = document.getElementById('em-grupo').value.trim();
-  const gestor          = document.getElementById('em-gestor').value;
-  const status          = document.getElementById('em-status').value;
-  const tipoFechamento  = document.getElementById('em-tipo-fechamento').value;
-  const valorFechamento = parseInt(document.getElementById('em-valor-fechamento').value)||10;
+function closeEmpModal(){ document.getElementById('emp-modal-overlay').classList.remove('open'); }
+async function saveEmp(){
+  const razao          = document.getElementById('em-razao').value.trim();
+  const codigo         = document.getElementById('em-codigo').value.trim().toUpperCase();
+  const cnpj           = document.getElementById('em-cnpj').value.trim();
+  const grupo          = document.getElementById('em-grupo').value.trim();
+  const status         = document.getElementById('em-status').value;
+  const tipoFechamento = document.getElementById('em-tipo-fechamento').value;
+  const valorFechamento= parseInt(document.getElementById('em-valor-fechamento').value)||10;
   if(!razao||!codigo){ alert('Preencha razão social e código.'); return; }
+
+  const payload = {
+    razao_social: razao, codigo, cnpj: cnpj||null, grupo: grupo||null,
+    status, tipo_fechamento: tipoFechamento, valor_fechamento: valorFechamento,
+    cliente_id: _clienteId
+  };
+
   if(editEmpId){
-    const e = empresas_cad.find(x=>x.id===editEmpId);
-    Object.assign(e,{razao,codigo,cnpj,grupo,gestor,status,tipoFechamento,valorFechamento});
+    const { error } = await sb.from('empresas').update(payload).eq('id', editEmpId);
+    if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    const e = empresas_cad.find(x=>x._sbId===editEmpId);
+    if(e) Object.assign(e,{razao,codigo,cnpj,grupo,status,tipoFechamento,valorFechamento});
   } else {
-    empresas_cad.push({id:nextEmpId++,razao,codigo,cnpj,grupo,gestor,status,tipoFechamento,valorFechamento});
+    const { data, error } = await sb.from('empresas').insert(payload).select().single();
+    if(error){ alert('Erro ao criar empresa: ' + error.message); return; }
+    const nova = {id:data.id, _sbId:data.id, razao, codigo, cnpj:cnpj||'', grupo:grupo||'',
+                  gestor:'', status, tipoFechamento, valorFechamento};
+    empresas_cad.push(nova);
+    _empresasMap[codigo]   = data.id;
+    _uuidToEmpresa[data.id]= codigo;
   }
   closeEmpModal();
   renderEmpresas();
 }
-function deleteEmp(id){
-  if(!confirm('Remover esta empresa?')) return;
-  empresas_cad = empresas_cad.filter(e=>e.id!==id);
+async function deleteEmp(idx){
+  const e = empresas_cad[idx];
+  if(!e) return;
+  if(!confirm('Remover esta empresa? Todas as tarefas vinculadas serão excluídas.')) return;
+  const { error } = await sb.from('empresas').delete().eq('id', e._sbId);
+  if(error){ alert('Erro ao remover: ' + error.message); return; }
+  delete _empresasMap[e.codigo];
+  delete _uuidToEmpresa[e._sbId];
+  empresas_cad.splice(idx, 1);
   renderEmpresas();
 }
 

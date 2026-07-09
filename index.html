@@ -3496,11 +3496,11 @@ async function saveEmp(){
     const { error } = await sb.from('empresas').update(payload).eq('id', editEmpId);
     if(error){ alert('Erro ao salvar: ' + error.message); return; }
     const e = empresas_cad.find(x=>x._sbId===editEmpId);
-    if(e) Object.assign(e,{razao,codigo,cnpj,grupo,status,tipoFechamento,valorFechamento});
+    if(e) Object.assign(e,{razao,codigo,cnpj,status,tipoFechamento,valorFechamento});
   } else {
     const { data, error } = await sb.from('empresas').insert(payload).select().single();
     if(error){ alert('Erro ao criar empresa: ' + error.message); return; }
-    const nova = {id:data.id, _sbId:data.id, razao, codigo, cnpj:cnpj||'', grupo:grupo||'',
+    const nova = {id:data.id, _sbId:data.id, razao, codigo, cnpj:cnpj||'',
                   gestor:'', status, tipoFechamento, valorFechamento};
     empresas_cad.push(nova);
     _empresasMap[codigo]   = data.id;

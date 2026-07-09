@@ -465,7 +465,6 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       <div class="user-switcher">
         <span id="topbar-user-pill">👤 —</span>
       </div>
-      <div class="company-pill">🏢 GRUPO XPTO S/A</div>
       <div id="op-impersonate-banner" style="display:none;align-items:center;gap:8px;background:#fffbe6;border:1px solid #c87d00;border-radius:8px;padding:4px 12px;font-size:12px;color:#7a4d00">
         <span>👁 Acessando como cliente:</span>
         <strong id="op-impersonate-nome">—</strong>
@@ -1648,12 +1647,14 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
   <div class="modal" style="width:580px">
     <h3>Novo cliente</h3>
 
-    <!-- Seleção de plano -->
+    <!-- Status -->
     <div style="display:flex;gap:8px;margin-bottom:20px">
-      <button id="nc-plano-starter"      class="toggle-btn active" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('starter')">Starter</button>
-      <button id="nc-plano-profissional" class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('profissional')">Profissional</button>
-      <button id="nc-plano-empresarial"  class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('empresarial')">Empresarial</button>
+      <button id="nc-status-trial"     class="toggle-btn active" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcStatus('trial')">Trial</button>
+      <button id="nc-status-ativo"     class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcStatus('ativo')">Ativo</button>
+      <button id="nc-status-suspenso"  class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcStatus('suspenso')">Suspenso</button>
+      <button id="nc-status-cancelado" class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcStatus('cancelado')">Cancelado</button>
     </div>
+    <input type="hidden" id="nc-status" value="trial">
     <input type="hidden" id="nc-plano" value="starter">
 
     <div class="form-grid">
@@ -1661,9 +1662,17 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
         <label>Razão social *</label>
         <input type="text" id="nc-razao" placeholder="Ex: Lima Contabilidade Ltda">
       </div>
-      <div class="fg full">
+      <div class="fg">
         <label>CNPJ <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
         <input type="text" id="nc-cnpj" placeholder="00.000.000/0001-00">
+      </div>
+      <div class="fg">
+        <label>Plano</label>
+        <select id="nc-plano-sel" onchange="document.getElementById('nc-plano').value=this.value">
+          <option value="starter">Starter</option>
+          <option value="profissional">Profissional</option>
+          <option value="empresarial">Empresarial</option>
+        </select>
       </div>
     </div>
 
@@ -1712,19 +1721,13 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
     <h3>Editar contrato</h3>
 
     <div style="display:flex;gap:8px;margin-bottom:20px">
-      <button id="ec-plano-starter"      class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('starter')">Starter</button>
-      <button id="ec-plano-profissional" class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('profissional')">Profissional</button>
-      <button id="ec-plano-empresarial"  class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('empresarial')">Empresarial</button>
-    </div>
-    <input type="hidden" id="ec-plano" value="starter">
-
-    <div style="display:flex;gap:8px;margin-bottom:20px">
-      <button id="ec-status-trial"     class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('trial')">Trial</button>
-      <button id="ec-status-ativo"     class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('ativo')">Ativo</button>
-      <button id="ec-status-suspenso"  class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('suspenso')">Suspenso</button>
-      <button id="ec-status-cancelado" class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('cancelado')">Cancelado</button>
+      <button id="ec-status-trial"     class="toggle-btn active" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('trial')">Trial</button>
+      <button id="ec-status-ativo"     class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('ativo')">Ativo</button>
+      <button id="ec-status-suspenso"  class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('suspenso')">Suspenso</button>
+      <button id="ec-status-cancelado" class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('cancelado')">Cancelado</button>
     </div>
     <input type="hidden" id="ec-status" value="trial">
+    <input type="hidden" id="ec-plano" value="starter">
 
     <div class="form-grid">
       <div class="fg full">
@@ -1734,6 +1737,14 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       <div class="fg full">
         <label>CNPJ <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
         <input type="text" id="ec-cnpj" placeholder="00.000.000/0001-00">
+      </div>
+      <div class="fg full">
+        <label>Plano</label>
+        <select id="ec-plano-sel" onchange="document.getElementById('ec-plano').value=this.value">
+          <option value="starter">Starter</option>
+          <option value="profissional">Profissional</option>
+          <option value="empresarial">Empresarial</option>
+        </select>
       </div>
       <div class="fg full">
         <label>E-mail de contato</label>
@@ -1909,7 +1920,11 @@ async function loadSupabaseData(user, nomeEscritorio) {
   CURRENT_USER   = perfil.nome;
   _currentPerfil = perfil.perfil;
   document.getElementById('sb-user-email').textContent  = user.email;
-  document.getElementById('topbar-user-pill').textContent = `👤 ${perfil.nome} (${perfil.perfil})`;
+  document.getElementById('topbar-user-pill').textContent = `👤 ${perfil.nome}`;
+
+  // Preenche pill com nome do cliente
+  const { data: clienteInfo } = await sb.from('clientes').select('nome').eq('id', _clienteId).maybeSingle();
+  if (clienteInfo) document.getElementById('topbar-company-pill').textContent = `🏢 ${clienteInfo.nome}`;
 
   // 2. Carrega empresas
   const { data: sbEmpresas } = await sb.from('empresas').select('*').eq('cliente_id', _clienteId);
@@ -3698,19 +3713,8 @@ function deleteTipo(id){
 
 // ══ INBOX ═════════════════════════════════════════════════════════════════
 
-let inboxMsgs = [
-  {id:1, de:'carlos.mendes@clienteabc.com.br', nome:'Carlos Mendes', assunto:'Fwd: Balancete junho/2025 — prazo para entrega',
-   corpo:`Bom dia, equipe.\n\nConforme alinhado na reunião de ontem, precisamos do balancete de junho até o dia 10/07. Peço que priorizem essa entrega pois o conselho se reúne no dia 11.\n\nAguardo retorno.\n\nAtt,\nCarlos`, recebido:'2025-07-03T08:42:00', status:'pendente', tarefaId:null},
-  {id:2, de:'ana.lucia@grupoxpto.com.br', nome:'Ana Lúcia', assunto:'Fwd: Divergência nas conciliações — conta 2000010',
-   corpo:`Olá,\n\nIdentifiquei uma divergência de R$ 4.200,00 na conta 2000010 no mês de junho. Solicito verificação e ajuste antes do fechamento.\n\nSegue print em anexo.\n\nAna Lúcia — Controladoria`, recebido:'2025-07-04T14:15:00', status:'pendente', tarefaId:null},
-  {id:3, de:'fiscal@escritoriosilva.com.br', nome:'Escritório Silva', assunto:'Fwd: SPED Contribuições — prazo 15/07',
-   corpo:`Prezados,\n\nLembramos que o prazo de entrega do EFD-Contribuições referente a junho/2025 é dia 15/07. Favor confirmar se já iniciaram o processo de apuração.\n\nEscritório Silva — Fiscal`, recebido:'2025-07-04T09:00:00', status:'pendente', tarefaId:null},
-  {id:4, de:'rh@grupoxpto.com.br', nome:'Equipe RH', assunto:'Fwd: Provisão de férias — colaboradores em Julho',
-   corpo:`Boa tarde,\n\nSegue relação dos colaboradores com férias programadas em julho para provisão contábil. Total de 8 colaboradores.\n\nRH — Grupo XPTO`, recebido:'2025-07-02T16:30:00', status:'convertido', tarefaId:5},
-  {id:5, de:'ti@grupoxpto.com.br', nome:'TI Grupo XPTO', assunto:'Fwd: Manutenção programada ERP — sábado 06/07',
-   corpo:`Informamos que o ERP ficará indisponível no sábado, dia 06/07, das 08h às 14h para manutenção.\n\nPlanejem seus acessos.\n\nEquipe TI`, recebido:'2025-07-01T11:00:00', status:'ignorado', tarefaId:null},
-];
-let nextInboxId = 6;
+let inboxMsgs = [];
+let nextInboxId = 1;
 let inboxFilter = 'pendente';
 let inboxTaskTarget = null;
 
@@ -5264,8 +5268,8 @@ function openEditarContratoSel() {
 
 function setEcPlano(plano) {
   document.getElementById('ec-plano').value = plano;
-  ['starter','profissional','empresarial'].forEach(p =>
-    document.getElementById('ec-plano-'+p).classList.toggle('active', p===plano));
+  const sel = document.getElementById('ec-plano-sel');
+  if (sel) sel.value = plano;
 }
 function setEcStatus(status) {
   document.getElementById('ec-status').value = status;
@@ -5363,15 +5367,20 @@ async function voltarPainelOperador() {
 
 function setNcPlano(plano) {
   document.getElementById('nc-plano').value = plano;
-  ['starter','profissional','empresarial'].forEach(p => {
-    document.getElementById('nc-plano-'+p).classList.toggle('active', p===plano);
-  });
+  ['starter','profissional','empresarial'].forEach(p =>
+    document.getElementById('nc-plano-'+p).classList.toggle('active', p===plano));
+}
+function setNcStatus(status) {
+  document.getElementById('nc-status').value = status;
+  ['trial','ativo','suspenso','cancelado'].forEach(s =>
+    document.getElementById('nc-status-'+s).classList.toggle('active', s===status));
 }
 function openNovoCliente() {
   document.getElementById('modal-novo-cliente').classList.add('open');
   document.getElementById('nc-convite-result').style.display = 'none';
   ['nc-razao','nc-cnpj','nc-nome-master','nc-email-master'].forEach(id => document.getElementById(id).value='');
   setNcPlano('starter');
+  setNcStatus('trial');
 }
 function closeNovoCliente() {
   document.getElementById('modal-novo-cliente').classList.remove('open');
@@ -5382,6 +5391,7 @@ async function salvarNovoCliente() {
   const razao  = document.getElementById('nc-razao').value.trim();
   const cnpj   = document.getElementById('nc-cnpj').value.trim();
   const plano  = document.getElementById('nc-plano').value;
+  const status = document.getElementById('nc-status').value;
   const email  = document.getElementById('nc-email-master').value.trim();
   const nome   = document.getElementById('nc-nome-master').value.trim();
   if (!razao || !email) { alert('Preencha razão social e e-mail do Master.'); return; }
@@ -5391,6 +5401,11 @@ async function salvarNovoCliente() {
     p_email_master: email, p_nome_master: nome
   });
   if (error) { alert('Erro: ' + error.message); return; }
+
+  // Atualiza status se diferente de trial
+  if (status !== 'trial') {
+    await sb.from('clientes').update({ status }).eq('id', data.cliente_id);
+  }
 
   const baseUrl = window.location.href.split('?')[0];
   const link    = `${baseUrl}?convite=${data.token}`;

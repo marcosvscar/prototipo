@@ -489,20 +489,45 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       </div>
       <div id="op-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px"></div>
       <div style="background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:10px">
+          <!-- Busca + filtros -->
+          <div style="display:flex;gap:10px;align-items:center">
+            <input id="op-busca-cliente" type="text" placeholder="🔍  Buscar por nome ou CNPJ..."
+              oninput="filtrarContratos()"
+              style="flex:1;border:1px solid #dde3ea;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;color:var(--text)">
+            <div style="display:flex;gap:6px">
+              <button id="op-f-todos"     class="toggle-btn active" onclick="setFiltroStatus('todos')"     style="padding:6px 12px;border:1px solid #dde3ea;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Todos</button>
+              <button id="op-f-trial"     class="toggle-btn"        onclick="setFiltroStatus('trial')"     style="padding:6px 12px;border:1px solid #dde3ea;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Trial</button>
+              <button id="op-f-ativo"     class="toggle-btn"        onclick="setFiltroStatus('ativo')"     style="padding:6px 12px;border:1px solid #dde3ea;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Ativos</button>
+              <button id="op-f-suspenso"  class="toggle-btn"        onclick="setFiltroStatus('suspenso')"  style="padding:6px 12px;border:1px solid #dde3ea;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Suspensos</button>
+            </div>
+          </div>
+          <!-- Ações do cliente selecionado -->
+          <div id="op-contrato-acoes" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:#f4f6fa;border-radius:8px;border:1px solid #e2e8ef">
+            <span id="op-contrato-sel-nome" style="font-size:13px;font-weight:600;color:var(--primary);flex:1">—</span>
+            <button onclick="acessarClienteSel()"
+              style="background:var(--primary);color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
+              Acessar ambiente →
+            </button>
+            <button onclick="openEditarContratoSel()"
+              style="background:#fff;color:var(--primary);border:1px solid var(--primary);padding:7px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
+              ✏ Editar contrato
+            </button>
+          </div>
+        </div>
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:#f8f9fa">
-              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Cliente</th>
-              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Status</th>
-              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Plano</th>
-              <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Empresas</th>
-              <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Usuários</th>
-              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee">Desde</th>
-              <th style="padding:10px 16px;border-bottom:1px solid #eee"></th>
+              <th onclick="sortContratos('nome')"     style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Cliente <span id="sort-icon-nome"></span></th>
+              <th onclick="sortContratos('status')"   style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Status <span id="sort-icon-status"></span></th>
+              <th onclick="sortContratos('plano')"    style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Plano <span id="sort-icon-plano"></span></th>
+              <th onclick="sortContratos('empresas')" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Empresas <span id="sort-icon-empresas"></span></th>
+              <th onclick="sortContratos('usuarios')" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Usuários <span id="sort-icon-usuarios"></span></th>
+              <th onclick="sortContratos('criado_em')" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;cursor:pointer;user-select:none">Desde <span id="sort-icon-criado_em"></span></th>
             </tr>
           </thead>
           <tbody id="op-clientes-tbody">
-            <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted)">Carregando...</td></tr>
+            <tr><td colspan="6" style="padding:32px;text-align:center;color:var(--muted)">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1623,22 +1648,22 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
   <div class="modal" style="width:580px">
     <h3>Novo cliente</h3>
 
+    <!-- Seleção de plano -->
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button id="nc-plano-starter"      class="toggle-btn active" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('starter')">Starter</button>
+      <button id="nc-plano-profissional" class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('profissional')">Profissional</button>
+      <button id="nc-plano-empresarial"  class="toggle-btn"        style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setNcPlano('empresarial')">Empresarial</button>
+    </div>
+    <input type="hidden" id="nc-plano" value="starter">
+
     <div class="form-grid">
       <div class="fg full">
         <label>Razão social *</label>
         <input type="text" id="nc-razao" placeholder="Ex: Lima Contabilidade Ltda">
       </div>
-      <div class="fg">
+      <div class="fg full">
         <label>CNPJ <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
         <input type="text" id="nc-cnpj" placeholder="00.000.000/0001-00">
-      </div>
-      <div class="fg">
-        <label>Plano</label>
-        <select id="nc-plano">
-          <option value="starter">Starter</option>
-          <option value="profissional">Profissional</option>
-          <option value="empresarial">Empresarial</option>
-        </select>
       </div>
     </div>
 
@@ -1677,6 +1702,48 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
           </button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Editar Contrato (Operador) -->
+<div class="overlay" id="modal-editar-contrato">
+  <div class="modal" style="width:520px">
+    <h3>Editar contrato</h3>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button id="ec-plano-starter"      class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('starter')">Starter</button>
+      <button id="ec-plano-profissional" class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('profissional')">Profissional</button>
+      <button id="ec-plano-empresarial"  class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcPlano('empresarial')">Empresarial</button>
+    </div>
+    <input type="hidden" id="ec-plano" value="starter">
+
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button id="ec-status-trial"     class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('trial')">Trial</button>
+      <button id="ec-status-ativo"     class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('ativo')">Ativo</button>
+      <button id="ec-status-suspenso"  class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('suspenso')">Suspenso</button>
+      <button id="ec-status-cancelado" class="toggle-btn" style="flex:1;padding:9px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" onclick="setEcStatus('cancelado')">Cancelado</button>
+    </div>
+    <input type="hidden" id="ec-status" value="trial">
+
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Razão social *</label>
+        <input type="text" id="ec-razao" placeholder="Ex: Lima Contabilidade Ltda">
+      </div>
+      <div class="fg full">
+        <label>CNPJ <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <input type="text" id="ec-cnpj" placeholder="00.000.000/0001-00">
+      </div>
+      <div class="fg full">
+        <label>E-mail de contato</label>
+        <input type="email" id="ec-email" placeholder="Ex: contato@empresa.com.br">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditarContrato()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarContrato()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -5042,7 +5109,7 @@ async function initOperador(user) {
 
 async function renderContratos() {
   const tbody = document.getElementById('op-clientes-tbody');
-  tbody.innerHTML = `<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted)">Carregando...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--muted)">Carregando...</td></tr>`;
 
   const { data, error } = await sb.rpc('listar_clientes_operador');
   if (error) {
@@ -5050,6 +5117,7 @@ async function renderContratos() {
     return;
   }
   const list = Array.isArray(data) ? data : [];
+  window._contratosCache = list;
 
   const totalEmpresas = list.reduce((s,c) => s + (c.total_empresas||0), 0);
   const totalUsuarios = list.reduce((s,c) => s + (c.total_usuarios||0), 0);
@@ -5065,28 +5133,173 @@ async function renderContratos() {
     <div class="kpi-sub">${sub}</div></div>`).join('');
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted)">Nenhum cliente cadastrado ainda.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--muted)">Nenhum cliente cadastrado ainda.</td></tr>`;
     return;
   }
 
+  _renderContratosLista(list);
+}
+
+let _filtroStatus = 'todos';
+let _sortCol = 'criado_em';
+let _sortDir = -1; // -1 = desc, 1 = asc
+
+function setFiltroStatus(s) {
+  _filtroStatus = s;
+  ['todos','trial','ativo','suspenso'].forEach(k =>
+    document.getElementById('op-f-'+k).classList.toggle('active', k===s));
+  _contratoSelecionado = null;
+  document.getElementById('op-contrato-acoes').style.display = 'none';
+  filtrarContratos();
+}
+
+function sortContratos(col) {
+  if (_sortCol === col) _sortDir *= -1;
+  else { _sortCol = col; _sortDir = 1; }
+  // atualiza ícones
+  ['nome','status','plano','empresas','usuarios','criado_em'].forEach(c => {
+    const el = document.getElementById('sort-icon-'+c);
+    if (el) el.textContent = c === _sortCol ? (_sortDir === 1 ? ' ▲' : ' ▼') : '';
+  });
+  filtrarContratos();
+}
+
+function filtrarContratos() {
+  const q = (document.getElementById('op-busca-cliente')?.value||'').toLowerCase();
+  let list = [...(window._contratosCache || [])];
+
+  // filtro de status
+  if (_filtroStatus !== 'todos') list = list.filter(c => c.status === _filtroStatus);
+
+  // busca por texto
+  if (q) list = list.filter(c =>
+    (c.nome||'').toLowerCase().includes(q) ||
+    (c.cnpj||'').toLowerCase().includes(q));
+
+  // ordenação
+  list.sort((a, b) => {
+    let va, vb;
+    if (_sortCol === 'nome')      { va = (a.nome||'').toLowerCase();    vb = (b.nome||'').toLowerCase(); }
+    else if (_sortCol === 'status') { va = a.status||'';                vb = b.status||''; }
+    else if (_sortCol === 'plano')  { va = a.plano||'';                 vb = b.plano||''; }
+    else if (_sortCol === 'empresas') { va = a.total_empresas||0;       vb = b.total_empresas||0; }
+    else if (_sortCol === 'usuarios') { va = a.total_usuarios||0;       vb = b.total_usuarios||0; }
+    else { va = a.criado_em||''; vb = b.criado_em||''; }
+    return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
+  });
+
+  _renderContratosLista(list);
+}
+
+function _renderContratosLista(list) {
+  const tbody = document.getElementById('op-clientes-tbody');
   const statusBadge = { ativo:'#22a36f', trial:'#c87d00', suspenso:'#d94040', cancelado:'#95a5a6' };
   const statusBg    = { ativo:'#eafaf3', trial:'#fffbe6', suspenso:'#fdf0f0', cancelado:'#f5f5f5' };
-  tbody.innerHTML = list.map(c => {
-    const dt = c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR',{month:'short',year:'numeric'}) : '—';
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--muted)">Nenhum cliente encontrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((c,i) => {
+    const dt  = c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR',{month:'short',year:'numeric'}) : '—';
     const cor = statusBadge[c.status] || '#888';
     const bg  = statusBg[c.status]   || '#f5f5f5';
-    return `<tr>
-      <td><div style="font-weight:600">${c.nome}</div>
-          <div style="font-size:11px;color:var(--muted)">${c.email_contato||''}</div></td>
-      <td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${bg};color:${cor}">${c.status}</span></td>
-      <td style="color:var(--muted);text-transform:capitalize">${c.plano||'—'}</td>
-      <td style="text-align:center">${c.total_empresas||0}</td>
-      <td style="text-align:center">${c.total_usuarios||0}</td>
-      <td style="color:var(--muted)">${dt}</td>
-      <td><span style="color:var(--primary);font-size:12px;cursor:pointer;font-weight:600"
-          onclick="acessarCliente('${c.id}','${c.nome.replace(/'/g,"\\'")}')">Acessar →</span></td>
+    const realIdx = (window._contratosCache||[]).indexOf(c);
+    return `
+    <tr onclick="selecionarContrato(${realIdx})" style="cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=this.dataset.sel==='1'?'#eef2ff':''">
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0">
+        <div style="font-weight:600">${c.nome}</div>
+        <div style="font-size:11px;color:var(--muted)">${c.cnpj||c.email_contato||'—'}</div>
+      </td>
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0">
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${bg};color:${cor}">${c.status}</span>
+      </td>
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;color:var(--muted);text-transform:capitalize">${c.plano||'—'}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;text-align:center">${c.total_empresas||0}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;text-align:center">${c.total_usuarios||0}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;color:var(--muted)">${dt}</td>
     </tr>`;
   }).join('');
+}
+
+let _contratoSelecionado = null;
+
+function selecionarContrato(idx) {
+  const c = (window._contratosCache||[])[idx];
+  if (!c) return;
+
+  // desmarca linha anterior
+  document.querySelectorAll('#op-clientes-tbody tr[data-sel]').forEach(r => {
+    r.style.background = '';
+    r.dataset.sel = '';
+  });
+
+  if (_contratoSelecionado === idx) {
+    // clicou na mesma linha — deseleciona
+    _contratoSelecionado = null;
+    document.getElementById('op-contrato-acoes').style.display = 'none';
+    return;
+  }
+
+  // seleciona nova linha
+  _contratoSelecionado = idx;
+  const rows = document.querySelectorAll('#op-clientes-tbody tr');
+  // cada cliente ocupa 1 tr agora
+  if (rows[idx]) { rows[idx].style.background = '#eef2ff'; rows[idx].dataset.sel = '1'; }
+
+  document.getElementById('op-contrato-sel-nome').textContent = c.nome;
+  document.getElementById('op-contrato-acoes').style.display = 'flex';
+}
+
+function acessarClienteSel() {
+  const c = (window._contratosCache||[])[_contratoSelecionado];
+  if (c) acessarCliente(c.id, c.nome);
+}
+
+function openEditarContratoSel() {
+  if (_contratoSelecionado !== null) openEditarContrato(_contratoSelecionado);
+}
+
+function setEcPlano(plano) {
+  document.getElementById('ec-plano').value = plano;
+  ['starter','profissional','empresarial'].forEach(p =>
+    document.getElementById('ec-plano-'+p).classList.toggle('active', p===plano));
+}
+function setEcStatus(status) {
+  document.getElementById('ec-status').value = status;
+  ['trial','ativo','suspenso','cancelado'].forEach(s =>
+    document.getElementById('ec-status-'+s).classList.toggle('active', s===status));
+}
+let _editContratoId = null;
+function openEditarContrato(idx) {
+  const c = (window._contratosCache||[])[idx];
+  if(!c) return;
+  _editContratoId = c.id;
+  document.getElementById('ec-razao').value = c.nome || '';
+  document.getElementById('ec-cnpj').value  = c.cnpj || '';
+  document.getElementById('ec-email').value = c.email_contato || '';
+  setEcPlano(c.plano || 'starter');
+  setEcStatus(c.status || 'trial');
+  document.getElementById('modal-editar-contrato').classList.add('open');
+}
+function closeEditarContrato() {
+  document.getElementById('modal-editar-contrato').classList.remove('open');
+}
+async function salvarContrato() {
+  const razao  = document.getElementById('ec-razao').value.trim();
+  const cnpj   = document.getElementById('ec-cnpj').value.trim();
+  const email  = document.getElementById('ec-email').value.trim();
+  const plano  = document.getElementById('ec-plano').value;
+  const status = document.getElementById('ec-status').value;
+  if(!razao) { alert('Preencha a razão social.'); return; }
+  const { error } = await sb.from('clientes').update({
+    nome: razao, cnpj: cnpj||null, email_contato: email||null, plano, status
+  }).eq('id', _editContratoId);
+  if(error) { alert('Erro ao salvar: ' + error.message); return; }
+  closeEditarContrato();
+  await renderContratos();
 }
 
 async function acessarCliente(clienteId, nomeCliente) {
@@ -5148,10 +5361,17 @@ async function voltarPainelOperador() {
   await renderContratos();
 }
 
+function setNcPlano(plano) {
+  document.getElementById('nc-plano').value = plano;
+  ['starter','profissional','empresarial'].forEach(p => {
+    document.getElementById('nc-plano-'+p).classList.toggle('active', p===plano);
+  });
+}
 function openNovoCliente() {
   document.getElementById('modal-novo-cliente').classList.add('open');
   document.getElementById('nc-convite-result').style.display = 'none';
   ['nc-razao','nc-cnpj','nc-nome-master','nc-email-master'].forEach(id => document.getElementById(id).value='');
+  setNcPlano('starter');
 }
 function closeNovoCliente() {
   document.getElementById('modal-novo-cliente').classList.remove('open');

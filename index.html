@@ -2088,6 +2088,52 @@ async function loadSupabaseData(user, nomeEscritorio) {
     status: c.status,
     observacao: c.observacao || null,
   }));
+
+  // 6. Carrega departamentos
+  const { data: sbDepts } = await sb.from('departamentos').select('*').eq('cliente_id', _clienteId);
+  if(sbDepts && sbDepts.length){
+    departamentos_cad = sbDepts.map(d => ({ id: d.id, _sbId: d.id, nome: d.nome, desc: d.descricao || '' }));
+    nextDeptId = null; // UUIDs — não usa mais auto-increment
+  }
+
+  // 7. Carrega níveis (usa ordem como ID legado para compatibilidade com tarefas existentes)
+  const { data: sbNiveis } = await sb.from('niveis').select('*').eq('cliente_id', _clienteId).order('ordem').order('created_at');
+  if(sbNiveis && sbNiveis.length){
+    const uuidToInt = {};
+    let autoId = 1;
+    sbNiveis.forEach(n => {
+      const intId = n.ordem > 0 ? n.ordem : autoId++;
+      uuidToInt[n.id] = intId;
+    });
+    niveis_cad = sbNiveis.map(n => ({
+      id:      uuidToInt[n.id],
+      _sbId:   n.id,
+      pai:     n.pai_id ? (uuidToInt[n.pai_id] || null) : null,
+      pai_sbId: n.pai_id || null,
+      nome:    n.nome,
+      desc:    n.descricao || '',
+      ordem:   n.ordem || 0,
+    }));
+    nextNivelId = Math.max(0, ...niveis_cad.map(n=>n.id)) + 1;
+  }
+
+  // 8. Carrega tipos de tarefa
+  const { data: sbTipos } = await sb.from('tipos_tarefa').select('*').eq('cliente_id', _clienteId);
+  if(sbTipos && sbTipos.length){
+    const nivelUuidToInt = {};
+    niveis_cad.forEach(n => { nivelUuidToInt[n._sbId] = n.id; });
+    tipos_cad = sbTipos.map(t => ({
+      id: t.id, _sbId: t.id,
+      nome: t.nome,
+      nivel: t.nivel_id ? (nivelUuidToInt[t.nivel_id] || null) : null,
+      nivel_sbId: t.nivel_id || null,
+      recorrencia: t.recorrencia,
+      prazo: t.prazo_estimado || 0,
+      importante: t.importante ? 'Sim' : 'Não',
+      urgente: t.urgente ? 'Sim' : 'Não',
+    }));
+    nextTipoId = null;
+  }
 }
 
 async function initApp() {
@@ -2298,11 +2344,21 @@ function calcDataFechamento(emp, mesRef){
 let fechamentoFilterAtivo = 'todos';
 
 // Mock de % entregas no prazo dos últimos 3 meses por empresa — substituir por histórico real no Supabase
-const historicoPontualidade = {
-  LIMA:   [45, 60, 55],  // 3 meses atrás → 2 meses atrás → mês anterior
-  BRAVO:  [80, 75, 65],
-  SIERRA: [30, 25, 35],
-};
+function calcPontualidadeHistorica(empCodigo){
+  const hoje = new Date();
+  return [-3,-2,-1].map(offset => {
+    const d   = new Date(hoje.getFullYear(), hoje.getMonth()+offset, 1);
+    const mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const conc = tasks.filter(t =>
+      t.empresa === empCodigo &&
+      t.statusExecucao === '3 - Concluída' &&
+      (t.dataVencimento||'').startsWith(mes)
+    );
+    if(!conc.length) return null;
+    const noPrazo = conc.filter(t => t.dataConclusao && t.dataVencimento && t.dataConclusao <= t.dataVencimento).length;
+    return Math.round(noPrazo / conc.length * 100);
+  });
+}
 
 function calcEmpresaFechamentoData(emp, mesRef){
   const hoje = new Date();
@@ -2339,10 +2395,11 @@ function calcEmpresaFechamentoData(emp, mesRef){
   const total_concluidas = tasks.filter(t=>t.empresa===emp.codigo && t.statusExecucao==='3 - Concluída').length;
   const pontualidadeAtual = total_concluidas > 0 ? Math.round((concluidas_prazo/total_concluidas)*100) : 0;
 
-  const hist = historicoPontualidade[emp.codigo] || [];
+  const hist  = calcPontualidadeHistorica(emp.codigo);
   const serie = [...hist, pontualidadeAtual];
   const labels = ['3 meses atrás','2 meses atrás','mês anterior','mês atual'];
   const bolinhas = serie.map((pct, i) => {
+    if(pct === null) return { cor:'#ccc', tip:`${labels[i]}: sem dados`, pct: null };
     const tip = `${labels[i]}: ${pct}% de eficácia`;
     let cor;
     if(pct >= 80)      cor = '#22a36f';
@@ -3922,21 +3979,36 @@ function openDeptModal(id=null){
   document.getElementById('dept-modal-overlay').classList.add('open');
 }
 function closeDeptModal(){ document.getElementById('dept-modal-overlay').classList.remove('open'); }
-function saveDept(){
+async function saveDept(){
   const nome = document.getElementById('dm-nome').value.trim();
   if(!nome){ alert('Informe o nome do departamento.'); return; }
   const desc = document.getElementById('dm-desc').value.trim();
   if(editDeptId){
     const d = departamentos_cad.find(x=>x.id===editDeptId);
+    if(_clienteId && d._sbId){
+      const { error } = await sb.from('departamentos').update({ nome, descricao: desc||null }).eq('id', d._sbId);
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    }
     Object.assign(d, {nome, desc});
   } else {
-    departamentos_cad.push({id:nextDeptId++, nome, desc});
+    if(_clienteId){
+      const { data, error } = await sb.from('departamentos').insert({ cliente_id:_clienteId, nome, descricao:desc||null }).select().single();
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+      departamentos_cad.push({ id: data.id, _sbId: data.id, nome, desc });
+    } else {
+      departamentos_cad.push({ id: nextDeptId++, nome, desc });
+    }
   }
   closeDeptModal();
   renderDepartamentos();
 }
-function deleteDept(id){
+async function deleteDept(id){
   if(!confirm('Remover este departamento?')) return;
+  const d = departamentos_cad.find(x=>x.id===id);
+  if(_clienteId && d?._sbId){
+    const { error } = await sb.from('departamentos').delete().eq('id', d._sbId);
+    if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  }
   departamentos_cad = departamentos_cad.filter(d=>d.id!==id);
   renderDepartamentos();
 }
@@ -4221,23 +4293,41 @@ function openNivelModal(id, paiForcado){
   document.getElementById('nivel-modal-overlay').style.display='flex';
 }
 function closeNivelModal(){ document.getElementById('nivel-modal-overlay').style.display='none'; }
-function saveNivel(){
+async function saveNivel(){
   const nome = document.getElementById('nv-nome').value.trim();
   const desc = document.getElementById('nv-desc').value.trim();
   const pai  = parseInt(document.getElementById('nv-pai').value)||null;
   if(!nome){ alert('Informe o nome do nível.'); return; }
+  const paiObj   = pai ? niveis_cad.find(n=>n.id===pai) : null;
+  const pai_sbId = paiObj?._sbId || null;
   if(editNivelId){
     const n = niveis_cad.find(x=>x.id===editNivelId);
-    Object.assign(n,{nome,desc,pai});
+    if(_clienteId && n._sbId){
+      const { error } = await sb.from('niveis').update({ nome, descricao:desc||null, pai_id:pai_sbId, ordem:editNivelId }).eq('id', n._sbId);
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    }
+    Object.assign(n, {nome, desc, pai, pai_sbId});
   } else {
-    niveis_cad.push({id:nextNivelId++,pai,nome,desc});
+    const newId = nextNivelId++;
+    if(_clienteId){
+      const { data, error } = await sb.from('niveis').insert({ cliente_id:_clienteId, nome, descricao:desc||null, pai_id:pai_sbId, ordem:newId }).select().single();
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+      niveis_cad.push({ id:newId, _sbId:data.id, pai, pai_sbId, nome, desc, ordem:newId });
+    } else {
+      niveis_cad.push({ id:newId, pai, nome, desc, ordem:newId });
+    }
   }
   closeNivelModal();
   renderNiveis();
 }
-function deleteNivel(id){
+async function deleteNivel(id){
   if(niveis_cad.some(n=>n.pai===id)){ alert('Remova os sub-níveis antes de excluir este.'); return; }
   if(!confirm('Remover este nível?')) return;
+  const n = niveis_cad.find(x=>x.id===id);
+  if(_clienteId && n?._sbId){
+    const { error } = await sb.from('niveis').delete().eq('id', n._sbId);
+    if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  }
   niveis_cad = niveis_cad.filter(n=>n.id!==id);
   renderNiveis();
 }
@@ -4276,7 +4366,7 @@ function openTipoModal(id){
   document.getElementById('tipo-modal-overlay').style.display='flex';
 }
 function closeTipoModal(){ document.getElementById('tipo-modal-overlay').style.display='none'; }
-function saveTipo(){
+async function saveTipo(){
   const nome        = document.getElementById('tp-nome').value.trim();
   const nivel       = parseInt(document.getElementById('tp-nivel').value)||null;
   const recorrencia = document.getElementById('tp-recorrencia').value;
@@ -4284,18 +4374,40 @@ function saveTipo(){
   const importante  = document.getElementById('tp-imp').value;
   const urgente     = document.getElementById('tp-urg').value;
   if(!nome){ alert('Informe o nome do tipo.'); return; }
+  const nivelObj   = nivel ? niveis_cad.find(n=>n.id===nivel) : null;
+  const nivel_sbId = nivelObj?._sbId || null;
+  const payload = {
+    nome, recorrencia, prazo_estimado: prazo,
+    importante: importante==='Sim', urgente: urgente==='Sim',
+    nivel_id: nivel_sbId,
+  };
   if(editTipoId){
     const t = tipos_cad.find(x=>x.id===editTipoId);
-    Object.assign(t,{nome,nivel,recorrencia,prazo,importante,urgente});
+    if(_clienteId && t._sbId){
+      const { error } = await sb.from('tipos_tarefa').update(payload).eq('id', t._sbId);
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    }
+    Object.assign(t, {nome, nivel, nivel_sbId, recorrencia, prazo, importante, urgente});
   } else {
-    tipos_cad.push({id:nextTipoId++,nome,nivel,recorrencia,prazo,importante,urgente});
+    if(_clienteId){
+      const { data, error } = await sb.from('tipos_tarefa').insert({ cliente_id:_clienteId, ...payload }).select().single();
+      if(error){ alert('Erro ao salvar: ' + error.message); return; }
+      tipos_cad.push({ id:data.id, _sbId:data.id, nome, nivel, nivel_sbId, recorrencia, prazo, importante, urgente });
+    } else {
+      tipos_cad.push({ id:nextTipoId++, nome, nivel, recorrencia, prazo, importante, urgente });
+    }
   }
   closeTipoModal();
   renderTipos();
 }
-function deleteTipo(id){
+async function deleteTipo(id){
   if(!confirm('Remover este tipo de tarefa?')) return;
-  tipos_cad = tipos_cad.filter(t=>t.id!==id);
+  const t = tipos_cad.find(x=>x.id===id);
+  if(_clienteId && t?._sbId){
+    const { error } = await sb.from('tipos_tarefa').delete().eq('id', t._sbId);
+    if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  }
+  tipos_cad = tipos_cad.filter(x=>x.id!==id);
   renderTipos();
 }
 

@@ -534,38 +534,33 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
 
     <!-- DASHBOARD VIEW -->
     <div id="view-dashboard" class="view active">
-      <div id="fechamento-panel"></div>
-      <div class="kpi-row" id="kpi-row"></div>
-      <div class="row2">
-        <div class="cc">
-          <div class="cc-title">Status das Tarefas por Mês</div>
-          <div style="position:relative;height:200px"><canvas id="chart-status"></canvas></div>
+      <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em">Competência</label>
+          <select id="dash-filtro-mes" onchange="renderDashboard()" style="font-size:13px;padding:7px 12px;border:1px solid #dde3ea;border-radius:8px;background:#fff;color:var(--dark);cursor:pointer">
+          </select>
         </div>
-        <div class="cc">
-          <div class="cc-title">Tarefas por Indicador</div>
-          <div style="position:relative;height:200px"><canvas id="chart-ind"></canvas></div>
-        </div>
-      </div>
-      <div class="row3">
-        <div class="cc gauge-card">
-          <div class="cc-title">Eficácia Geral do Grupo</div>
-          <div class="gauge-wrap" id="gauge-wrap">
-            <div class="gauge-big" id="gauge-val">—</div>
-            <div class="gauge-label">Entregas no prazo — mês atual</div>
-            <div class="gauge-bar"><div class="gauge-fill" id="gauge-fill" style="width:0%"></div></div>
-            <div class="gauge-zones"><span style="color:var(--danger)">⬤ &lt;60%</span><span style="color:var(--warning)">⬤ 60–79%</span><span style="color:var(--success)">⬤ ≥80%</span></div>
-            <div class="gauge-meta">Meta: <span>80%</span></div>
-            <div id="gauge-empresas" style="margin-top:14px;display:flex;flex-direction:column;gap:6px"></div>
-          </div>
-        </div>
-        <div class="cc">
-          <div class="cc-title">Tarefas que precisam de atenção</div>
-          <table id="dash-table">
-            <thead><tr><th>Empresa</th><th>Tarefa</th><th>Responsável</th><th>Vencimento</th><th>Status</th></tr></thead>
-            <tbody id="dash-tbody"></tbody>
-          </table>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em">Atividades</label>
+          <select id="dash-filtro-nivel" onchange="renderDashboard()" style="font-size:13px;padding:7px 12px;border:1px solid #dde3ea;border-radius:8px;background:#fff;color:var(--dark);cursor:pointer">
+            <option value="">Todas</option>
+          </select>
         </div>
       </div>
+      <div id="dash-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="cc" id="dash-alertas"></div>
+        <div class="cc" id="dash-previsao"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="cc" id="dash-status-emp"></div>
+        <div class="cc" id="dash-carga"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="cc" id="dash-obrigacoes"></div>
+        <div class="cc" id="dash-gargalos"></div>
+      </div>
+      <div class="cc" id="dash-historico" style="margin-bottom:16px"></div>
     </div>
 
     <!-- TAREFAS VIEW -->
@@ -583,6 +578,10 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
             <option value="1 - Em aberto">Em aberto</option>
             <option value="2 - Em andamento">Em andamento</option>
             <option value="3 - Concluída">Concluída</option>
+            <option value="__vencidas__">Prazo expirado</option>
+          </select>
+          <select class="filter-sel" id="filter-competencia" onchange="renderTasks()">
+            <option value="">Todas as competências</option>
           </select>
           <select class="filter-sel" id="filter-ind" onchange="renderTasks()">
             <option value="">Todos os indicadores</option>
@@ -599,6 +598,12 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
             <button id="toggle-matrix" class="toggle-btn" onclick="setTaskView('matrix')" title="Ver como matriz">⊞ Matriz</button>
           </div>
         </div>
+      </div>
+
+      <!-- Banner filtro do dashboard -->
+      <div id="dash-filtro-banner" style="display:none;align-items:center;gap:10px;background:#fffbe6;border:1px solid #c87d00;border-radius:8px;padding:8px 14px;font-size:12px;color:#7a4d00;margin-bottom:10px">
+        <span id="dash-filtro-banner-txt"></span>
+        <button onclick="limparDashFiltro()" style="margin-left:auto;background:none;border:none;color:#c87d00;cursor:pointer;font-size:12px;font-weight:600">✕ Limpar filtro</button>
       </div>
 
       <!-- LISTA -->
@@ -670,7 +675,15 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       <!-- Processo -->
       <div class="fg">
         <label>Processo (Nível)</label>
-        <select id="f-nivel" onchange="calcIndicador()"><option value="">— Selecionar —</option></select>
+        <select id="f-nivel" onchange="calcIndicador();sugerirCompetencia()"><option value="">— Selecionar —</option></select>
+      </div>
+
+      <!-- Competência -->
+      <div class="fg" id="f-competencia-wrap">
+        <label>Competência <span id="f-competencia-obrig" style="color:var(--danger);display:none">*</span></label>
+        <select id="f-competencia">
+          <option value="">— Selecionar —</option>
+        </select>
       </div>
 
       <!-- Solicitante: visível só no modo "eu", oculto no modo "terceiro" -->
@@ -774,6 +787,12 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       <div class="fg">
         <label>Ano</label>
         <input type="number" id="gm-ano" min="2024" max="2035" value="2026" onchange="atualizarPreviewGerar()">
+      </div>
+      <div class="fg">
+        <label>Competência</label>
+        <select id="gm-competencia">
+          <option value="">— Selecionar —</option>
+        </select>
       </div>
       <div class="fg full">
         <label>Filtrar por processo</label>
@@ -1156,6 +1175,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
     <button class="cad-tab"        id="ctab-niveis"         onclick="setCadTab('niveis')">🗂 Níveis</button>
     <button class="cad-tab"        id="ctab-tarefas"        onclick="setCadTab('tarefas-cad')">✅ Tipos de Tarefa</button>
     <button class="cad-tab"        id="ctab-processos"      onclick="setCadTab('processos')">📋 Modelos de Processo</button>
+    <button class="cad-tab"        id="ctab-competencias"   onclick="setCadTab('competencias')">📅 Competências</button>
   </div>
 
   <!-- ── USUÁRIOS ────────────────────────────────────────────────────── -->
@@ -1245,6 +1265,35 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
       <button class="btn-primary" onclick="openProcessoModal()">+ Novo Modelo</button>
     </div>
     <div id="cad-processos-list"></div>
+  </div>
+
+  <!-- ── COMPETÊNCIAS ────────────────────────────────────────────────── -->
+  <div id="cad-competencias" style="display:none">
+    <div class="cad-toolbar">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <span class="cad-count" id="cad-comp-count"></span>
+          <span style="font-size:12px;color:var(--muted);margin-left:6px">competências cadastradas</span>
+        </div>
+        <select id="comp-filtro-mes" onchange="renderCompetencias()" style="border:1px solid #dde3ea;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--dark)">
+          <option value="">Todos os meses</option>
+        </select>
+        <select id="comp-filtro-status" onchange="renderCompetencias()" style="border:1px solid #dde3ea;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--dark)">
+          <option value="">Todos os status</option>
+          <option value="aberta">Aberta</option>
+          <option value="fechada">Fechada</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="openCompModal()">+ Nova Competência</button>
+    </div>
+    <div class="cad-table-wrap">
+      <table class="cad-table">
+        <thead><tr>
+          <th>Mês</th><th>Empresa</th><th>Deadline</th><th>Status</th><th>Observação</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="cad-comp-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ── TIPOS DE TAREFA ─────────────────────────────────────────────── -->
@@ -1642,6 +1691,76 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
   </div>
 </div>
 
+<!-- MODAL: Competência -->
+<div class="overlay" id="comp-choice-overlay" style="z-index:1100">
+  <div class="modal confirm-modal" style="max-width:440px">
+    <p id="comp-choice-msg" style="font-size:14px;line-height:1.5;margin-bottom:20px"></p>
+    <div class="modal-actions" style="justify-content:flex-end;gap:8px">
+      <button class="btn-cancel" id="comp-choice-cancelar">Cancelar</button>
+      <button class="btn-secondary" id="comp-choice-nao" style="background:#f0f2f5;border:1px solid #dde3ea;color:var(--dark);padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Não</button>
+      <button class="btn-primary" id="comp-choice-sim">Sim</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="comp-modal-overlay">
+  <div class="modal" style="max-width:500px">
+    <h3 id="comp-modal-title">Gerar Competências por Ano</h3>
+
+    <!-- seção: gerar por ano (criar) -->
+    <div id="comp-gerar-section">
+      <div class="form-grid">
+        <div class="fg">
+          <label>Ano <span style="color:var(--danger)">*</span></label>
+          <input type="number" id="comp-ano" min="2020" max="2040" placeholder="Ex: 2026" style="width:100%">
+        </div>
+        <div class="fg">
+          <label>Empresa <span style="color:var(--danger)">*</span></label>
+          <select id="comp-empresa-gerar">
+            <option value="">— Selecionar —</option>
+            <option value="__todas__">Todas as empresas</option>
+          </select>
+        </div>
+        <div class="fg full">
+          <label>Observação</label>
+          <textarea id="comp-obs-gerar" rows="2" style="resize:vertical"></textarea>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Serão geradas as 12 competências do ano. Meses já cadastrados serão ignorados.</p>
+    </div>
+
+    <!-- seção: editar registro individual -->
+    <div id="comp-edit-section" style="display:none">
+      <div class="form-grid">
+        <div class="fg">
+          <label>Mês</label>
+          <input type="text" id="comp-mes-edit" disabled style="background:var(--surface);color:var(--muted)">
+        </div>
+        <div class="fg">
+          <label>Empresa</label>
+          <input type="text" id="comp-empresa-edit" disabled style="background:var(--surface);color:var(--muted)">
+        </div>
+        <div class="fg">
+          <label>Status</label>
+          <select id="comp-status">
+            <option value="aberta">Aberta</option>
+            <option value="fechada">Fechada</option>
+          </select>
+        </div>
+        <div class="fg full">
+          <label>Observação</label>
+          <textarea id="comp-obs" rows="2" style="resize:vertical"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeCompModal()">Cancelar</button>
+      <button class="btn-primary" id="comp-btn-salvar" onclick="saveComp()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Novo Cliente (Operador) -->
 <div class="overlay" id="modal-novo-cliente">
   <div class="modal" style="width:580px">
@@ -1787,6 +1906,7 @@ function taskToSb(task) {
     status_execucao: task.statusExecucao || '1 - Em aberto',
     data_conclusao: task.dataConclusao || null,
     observacoes: task.observacoes || null,
+    competencia: task.competencia || null,
     dados_extras: {
       nivelId: task.nivelId, categoria: task.categoria, subcategoria: task.subcategoria,
       solicitante: task.solicitante, motivoAtraso: task.motivoAtraso,
@@ -1825,6 +1945,7 @@ function sbToTask(row) {
     diaVencimento: x.diaVencimento || null, templateId: x.templateId || null,
     mesReferencia: x.mesReferencia || null, processoNome: x.processoNome || null,
     processoInstanciaId: x.processoInstanciaId || null,
+    competencia: row.competencia || null,
   };
 }
 
@@ -1956,6 +2077,17 @@ async function loadSupabaseData(user, nomeEscritorio) {
   const { data: sbTasks } = await sb.from('tarefas').select('*').in('empresa_id', empIds);
   tasks = (sbTasks || []).map(sbToTask);
   localStorage.setItem('ct_tasks', JSON.stringify(tasks));
+
+  // 5. Carrega competências
+  const { data: sbComps } = await sb.from('competencias').select('*').eq('cliente_id', _clienteId);
+  competencias_cad = (sbComps || []).map(c => ({
+    id: c.id,
+    mes: c.mes,
+    empresa: _uuidToEmpresa[c.empresa_id] || '?',
+    deadline: c.deadline,
+    status: c.status,
+    observacao: c.observacao || null,
+  }));
 }
 
 async function initApp() {
@@ -2297,143 +2429,325 @@ function verDetalhesFechamento(codigo){
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 let chartStatus=null, chartInd=null;
 function renderDashboard(){
-  // ── Painel de Fechamento ──────────────────────────────────────────────────
-  const hoje = new Date();
-  const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-  const mesLabel = hoje.toLocaleString('pt-BR',{month:'long',year:'numeric'});
-  const ordemRisco = {alto:0, medio:1, baixo:2};
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const hojeStr = hoje.toISOString().slice(0,10);
 
-  const dadosFech = empresas_cad
-    .filter(e=>e.status==='Ativa')
-    .map(e=>calcEmpresaFechamentoData(e, mesRef))
-    .filter(Boolean)
-    .sort((a,b)=>ordemRisco[a.riscoKey]-ordemRisco[b.riscoKey]);
+  // ── Popular dropdowns de filtro ──────────────────────────────────────────
+  const selNivel = document.getElementById('dash-filtro-nivel');
+  const selMes   = document.getElementById('dash-filtro-mes');
 
-  const top4 = dadosFech.slice(0,4);
-  const temMais = dadosFech.length > 4;
+  // Níveis raiz disponíveis nas tarefas
+  const raizes = [...new Set(enrichedTasks().map(t=>nivelRaizNome(t.nivelId)))].sort();
+  const nivelAtual = selNivel.value;
+  selNivel.innerHTML = '<option value="">Todas</option>' +
+    raizes.map(n=>`<option value="${n}"${nivelAtual===n?' selected':''}>${n}</option>`).join('');
 
-  document.getElementById('fechamento-panel').innerHTML = top4.length ? `
-    <div style="margin-bottom:24px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em">FECHAMENTO — ${mesLabel.toUpperCase()}</div>
-        <button onclick="navigate('fechamento')" style="font-size:12px;font-weight:600;color:var(--primary);background:none;border:none;cursor:pointer;padding:0">
-          ${temMais?`Ver todas (${dadosFech.length}) →`:'Ver painel completo →'}
-        </button>
-      </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">${top4.map(d=>buildFechamentoCard(d,false)).join('')}</div>
-    </div>` : '';
+  // Meses: competências cadastradas + meses presentes nas tarefas (fallback: 12 meses)
+  const mesRef = hojeStr.slice(0,7);
+  const mesAtual = selMes.value || mesRef;
+  const mesesComp = competencias_cad.map(c=>c.mes);
+  const mesesTasks = tasks.map(t=>t.competencia).filter(Boolean);
+  const mesesUniq = [...new Set([...mesesComp, ...mesesTasks])].sort().reverse();
+  const mesesDisp = mesesUniq.length ? mesesUniq : (()=>{
+    const arr = [];
+    for(let i=11;i>=0;i--){const d=new Date(hoje.getFullYear(),hoje.getMonth()-i,1);arr.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);}
+    return arr.reverse();
+  })();
+  selMes.innerHTML = mesesDisp.map(m=>`<option value="${m}"${mesAtual===m?' selected':''}>${fmtMesComp(m)}</option>`).join('');
+  if(!selMes.value) selMes.value = mesAtual;
 
-  const et = enrichedTasks();
-  const byInd = {'Alta prioridade':0,'Atenção':0,'Apoio':0,'Pode aguardar':0};
-  et.forEach(t=>{ if(byInd[t.indicador]!==undefined) byInd[t.indicador]++; });
-  // KPIs
-  const kpiRow = document.getElementById('kpi-row');
-  kpiRow.innerHTML = `
-    <div class="kpi total"><div class="kpi-lbl">Total de Tarefas</div><div class="kpi-val">${et.length}</div><div class="kpi-sub">${et.filter(t=>t.statusExecucao==='3 - Concluída').length} concluídas</div></div>
-    <div class="kpi pt"><div class="kpi-lbl">🔴 Alta prioridade</div><div class="kpi-val">${byInd['Alta prioridade']}</div><div class="kpi-sub">Importante + Urgente</div></div>
-    <div class="kpi pe"><div class="kpi-lbl">🔵 Atenção</div><div class="kpi-val">${byInd['Atenção']}</div><div class="kpi-sub">Importante + Não Urgente</div></div>
-    <div class="kpi ai"><div class="kpi-lbl">🟡 Apoio</div><div class="kpi-val">${byInd['Apoio']}</div><div class="kpi-sub">Urgente + Não Importante</div></div>
-    <div class="kpi sie"><div class="kpi-lbl">⚪ Pode aguardar</div><div class="kpi-val">${byInd['Pode aguardar']}</div><div class="kpi-sub">Não Urgente + Não Importante</div></div>
-  `;
-  // Status by month
-  const months = ['Jul','Ago','Set','Out','Nov','Dez'];
-  const monthMap = {'07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez'};
-  const byMonth = {};
-  months.forEach(m=>byMonth[m]={concluidas:0,abertas:0,atrasadas:0});
-  et.forEach(t=>{
-    const d = t.dataVencimento||t.dataConclusao;
-    if(!d) return;
-    const m = monthMap[d.split('-')[1]];
-    if(!m) return;
-    if(t.statusExecucao==='3 - Concluída') byMonth[m].concluidas++;
-    else if(t.statusPrazo==='2 - Aberta – Prazo Expirado') byMonth[m].atrasadas++;
-    else byMonth[m].abertas++;
-  });
-  if(chartStatus) chartStatus.destroy();
-  chartStatus = new Chart(document.getElementById('chart-status'),{
-    type:'bar',
-    data:{
-      labels:months,
-      datasets:[
-        {label:'Concluídas',data:months.map(m=>byMonth[m].concluidas),backgroundColor:'#22a36f'},
-        {label:'Em aberto',data:months.map(m=>byMonth[m].abertas),backgroundColor:'#2d7dd2'},
-        {label:'Prazo expirado',data:months.map(m=>byMonth[m].atrasadas),backgroundColor:'#d94040'},
-      ]
-    },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{precision:0}}}}
-  });
-  // By indicator
-  if(chartInd) chartInd.destroy();
-  chartInd = new Chart(document.getElementById('chart-ind'),{
-    type:'doughnut',
-    data:{
-      labels:['Alta prioridade','Atenção','Apoio','Pode aguardar'],
-      datasets:[{data:Object.values(byInd),backgroundColor:['#d94040','#2d7dd2','#e8a020','#95a5a6'],borderWidth:2,borderColor:'#fff'}]
-    },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8}}}}
-  });
-  // Eficácia Geral do Grupo
+  const filtroNivel = selNivel.value;
+  const filtroMes   = selMes.value || mesRef;
+  const mesLabel = new Date(filtroMes+'-02').toLocaleString('pt-BR',{month:'long',year:'numeric'});
+
+  // ── Tarefas filtradas ────────────────────────────────────────────────────
+  let et = enrichedTasks();
+  if(filtroNivel) et = et.filter(t=>nivelRaizNome(t.nivelId)===filtroNivel);
+  et = et.filter(t=>(t.dataVencimento||'').startsWith(filtroMes));
   const empAtivas = empresas_cad.filter(e=>e.status==='Ativa');
-  const efcPorEmp = empAtivas.map(emp=>{
-    const concl   = tasks.filter(t=>t.empresa===emp.codigo && t.statusExecucao==='3 - Concluída');
-    const noPrazo = concl.filter(t=>t.dataConclusao && t.dataVencimento && t.dataConclusao<=t.dataVencimento).length;
-    const pct     = concl.length > 0 ? Math.round((noPrazo/concl.length)*100) : 0;
-    return { codigo: emp.codigo, pct, concl: concl.length };
+
+  // ── dados por empresa ────────────────────────────────────────────────────
+  const porEmp = empAtivas.map(emp=>{
+    const tEmp   = et.filter(t=>t.empresa===emp.codigo);
+    const total  = tEmp.length;
+    const concl  = tEmp.filter(t=>t.statusExecucao==='3 - Concluída').length;
+    const vencidas = tEmp.filter(t=>t.statusExecucao!=='3 - Concluída' && t.dataVencimento && t.dataVencimento < hojeStr).length;
+    const pct    = total>0 ? Math.round((concl/total)*100) : 0;
+    const fech   = calcEmpresaFechamentoData(emp, mesRef);
+    const folga  = fech ? fech.folga : 99;
+    let badge, badgeClass;
+    if(pct===100){ badge='Concluída'; badgeClass='ok'; }
+    else if(vencidas>0){ badge='Atrasada'; badgeClass='late'; }
+    else if(folga<=5){ badge='Em risco'; badgeClass='risk'; }
+    else { badge='No prazo'; badgeClass='ok'; }
+    return { nome: emp.razao||emp.codigo, codigo: emp.codigo, pct, concl, total, vencidas, folga, badge, badgeClass, fech };
   });
-  const totalConcl  = efcPorEmp.reduce((s,e)=>s+e.concl,0);
-  const totalPrazo  = empAtivas.reduce((s,emp)=>{
-    const c = tasks.filter(t=>t.empresa===emp.codigo && t.statusExecucao==='3 - Concluída' &&
-      t.dataConclusao && t.dataVencimento && t.dataConclusao<=t.dataVencimento).length;
-    return s+c;
-  },0);
-  const efcGeral = totalConcl>0 ? Math.round((totalPrazo/totalConcl)*100) : 0;
-  const efcCor = efcGeral>=80?'var(--success)':efcGeral>=60?'var(--warning)':'var(--danger)';
-  document.getElementById('gauge-val').textContent = efcGeral+'%';
-  document.getElementById('gauge-val').style.color = efcCor;
-  document.getElementById('gauge-fill').style.width = Math.min(efcGeral,100)+'%';
-  document.getElementById('gauge-empresas').innerHTML = efcPorEmp.map(e=>{
-    const cor = e.pct>=80?'#22a36f':e.pct>=60?'#c87d00':'#d94040';
-    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
-      <span style="font-weight:700;color:var(--dark);min-width:52px">${e.codigo}</span>
-      <div style="flex:1;background:#eef0f4;border-radius:99px;height:6px;overflow:hidden">
-        <div style="height:100%;border-radius:99px;background:${cor};width:${e.pct}%"></div>
-      </div>
-      <span style="font-weight:600;color:${cor};min-width:36px;text-align:right">${e.pct}%</span>
+
+  // ── KPIs executivos ──────────────────────────────────────────────────────
+  const totalT  = et.length;
+  const conclT  = et.filter(t=>t.statusExecucao==='3 - Concluída').length;
+  const pctGeral = totalT>0 ? Math.round((conclT/totalT)*100) : 0;
+  const emRisco  = porEmp.filter(e=>e.badgeClass==='risk'||e.badgeClass==='late').length;
+  const vencidasT = et.filter(t=>t.statusExecucao!=='3 - Concluída' && t.dataVencimento && t.dataVencimento < hojeStr).length;
+  const conclAll  = et.filter(t=>t.statusExecucao==='3 - Concluída');
+  const noPrazo   = conclAll.filter(t=>t.dataConclusao && t.dataVencimento && t.dataConclusao<=t.dataVencimento).length;
+  const efcPct    = conclAll.length>0 ? Math.round((noPrazo/conclAll.length)*100) : 0;
+
+  const kpiCor = (v,ok,warn) => v>=ok?'var(--success)':v>=warn?'var(--warning)':'var(--danger)';
+
+  document.getElementById('dash-kpi-row').innerHTML = `
+    <div class="cc" style="padding:16px 20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Progresso geral — ${mesLabel}</div>
+      <div style="font-size:28px;font-weight:700;color:${kpiCor(pctGeral,80,50)}">${pctGeral}%</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">${conclT} de ${totalT} tarefas concluídas</div>
+    </div>
+    <div class="cc" style="padding:16px 20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Empresas em risco</div>
+      <div style="font-size:28px;font-weight:700;color:${emRisco>0?'var(--danger)':'var(--success)'}">${emRisco}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">prazo ≤ 5 dias úteis ou atrasada</div>
+    </div>
+    <div class="cc" style="padding:16px 20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Tarefas vencidas</div>
+      <div style="font-size:28px;font-weight:700;color:${vencidasT>0?'var(--danger)':'var(--success)'}">${vencidasT}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">${vencidasT>0?'requerem atenção imediata':'nenhuma em atraso'}</div>
+    </div>
+    <div class="cc" style="padding:16px 20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Entregas no prazo</div>
+      <div style="font-size:28px;font-weight:700;color:${kpiCor(efcPct,80,60)}">${efcPct}%</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">meta: 80%</div>
     </div>`;
-  }).join('');
-  // Tarefas que precisam de atenção
-  const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
-  const amanha = new Date(hoje2); amanha.setDate(amanha.getDate()+2);
-  const amanhaStr = amanha.toISOString().slice(0,10);
-  const hojeStr = hoje2.toISOString().slice(0,10);
 
-  const atencao = et
-    .filter(t => t.statusExecucao !== '3 - Concluída' && t.dataVencimento)
-    .filter(t => t.dataVencimento <= amanhaStr)
-    .sort((a,b) => a.dataVencimento.localeCompare(b.dataVencimento))
-    .slice(0, 8);
+  // ── Status por empresa ───────────────────────────────────────────────────
+  const badgeStyle = {
+    ok:   'background:#e8f5ee;color:#1a7a45',
+    risk: 'background:#fff7e6;color:#a05c00',
+    late: 'background:#fdecea;color:#a32d2d'
+  };
+  const barColor = { ok:'#639922', risk:'#EF9F27', late:'#E24B4A' };
 
-  const tbody = document.getElementById('dash-tbody');
-  if(!atencao.length){
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">✅ Nenhuma tarefa crítica no momento</td></tr>';
-  } else {
-    tbody.innerHTML = atencao.map(t=>{
-      const vencida = t.dataVencimento < hojeStr;
-      const hojeFlag = t.dataVencimento === hojeStr;
-      const statusTxt = vencida
-        ? `<span style="color:#d94040;font-weight:600">⚠ Vencida</span>`
-        : hojeFlag
-        ? `<span style="color:#c87d00;font-weight:600">⏰ Vence hoje</span>`
-        : `<span style="color:#2d7dd2;font-weight:600">📅 Vence amanhã</span>`;
-      return `<tr>
-        <td><b>${t.empresa}</b></td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tarefa}">${t.tarefa}</td>
-        <td>${t.responsavel}</td>
-        <td>${fmtDate(t.dataVencimento)}</td>
-        <td>${statusTxt}</td>
-      </tr>`;
-    }).join('');
+  document.getElementById('dash-status-emp').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">Status por empresa</div>
+    ${porEmp.length ? porEmp.map(e=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border-light)">
+        <span style="font-size:12px;font-weight:700;color:var(--dark);min-width:60px;font-family:monospace" title="${e.nome}">${e.codigo}</span>
+        <div style="flex:1;height:5px;background:#eef0f4;border-radius:3px;overflow:hidden">
+          <div style="height:100%;border-radius:3px;background:${barColor[e.badgeClass]||barColor.ok};width:${e.pct}%"></div>
+        </div>
+        <span style="font-size:12px;color:var(--muted);min-width:32px;text-align:right">${e.pct}%</span>
+        <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;min-width:76px;text-align:center;${badgeStyle[e.badgeClass]||badgeStyle.ok}">${e.badge}</span>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;padding:16px 0">Nenhuma empresa ativa cadastrada.</div>'}`;
+
+  // ── Alertas críticos ─────────────────────────────────────────────────────
+  const alertas = [];
+  porEmp.forEach(e=>{
+    if(e.vencidas>0)
+      alertas.push({ cor:'#E24B4A', txt:`${e.codigo} — ${e.vencidas} tarefa${e.vencidas>1?'s':''} vencida${e.vencidas>1?'s':''}`, meta:'Requer atenção imediata', tipo:'vencidas', empresa:e.codigo });
+    else if(e.badgeClass==='risk' && e.fech)
+      alertas.push({ cor:'#EF9F27', txt:`${e.codigo} — deadline em ${e.folga} dia${e.folga!==1?'s':''}, ${e.pct}% concluído`, meta:'Risco de não entrega', tipo:'risco', empresa:e.codigo });
+  });
+  const aprovPend = et.filter(t=>t.statusAprovacao==='Pendente');
+  if(aprovPend.length)
+    alertas.push({ cor:'#EF9F27', txt:`${aprovPend.length} aprovação${aprovPend.length>1?'ões':''} pendente${aprovPend.length>1?'s':''}`, meta:'Aguardando gestor', tipo:'aprovacao', empresa:'' });
+
+  document.getElementById('dash-alertas').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">Alertas críticos</div>
+    ${alertas.length ? alertas.map(a=>`
+      <div onclick="abrirTarefasFiltradas('${a.tipo}','${a.empresa}')"
+           style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border-light);cursor:pointer;border-radius:6px;transition:background .15s"
+           onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">
+        <div style="width:8px;height:8px;border-radius:50%;background:${a.cor};margin-top:4px;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--dark);line-height:1.4">${a.txt}</div>
+          <div style="font-size:11px;color:var(--muted)">${a.meta}</div>
+        </div>
+        <span style="font-size:11px;color:var(--primary);align-self:center;flex-shrink:0">Ver →</span>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;padding:16px 0">✅ Nenhum alerta no momento.</div>'}`;
+
+  // ── Histórico (últimos 6 meses com dados reais) ──────────────────────────
+  const hist = [];
+  for(let i=5; i>=0; i--){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleString('pt-BR',{month:'short'}).replace('.','');
+    const tMes   = tasks.filter(t=>(t.dataVencimento||'').startsWith(mes) && (!filtroNivel || nivelRaizNome(t.nivelId)===filtroNivel));
+    const conclM = tMes.filter(t=>t.statusExecucao==='3 - Concluída');
+    const noPrM  = conclM.filter(t=>t.dataConclusao && t.dataVencimento && t.dataConclusao<=t.dataVencimento).length;
+    const pctM   = conclM.length>0 ? Math.round((noPrM/conclM.length)*100) : null;
+    hist.push({ label, pctM });
   }
+
+  document.getElementById('dash-historico').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:14px">Histórico — % entregue no prazo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 32px">
+      ${hist.map(h=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px">
+          <span style="min-width:30px;color:var(--muted);text-transform:capitalize">${h.label}</span>
+          <div style="flex:1;height:7px;background:#eef0f4;border-radius:4px;overflow:hidden">
+            <div style="height:100%;border-radius:4px;background:${h.pctM===null?'#dde3ea':kpiCor(h.pctM,80,60)};width:${h.pctM??0}%"></div>
+          </div>
+          <span style="min-width:36px;text-align:right;font-weight:600;color:${h.pctM===null?'var(--muted)':kpiCor(h.pctM,80,60)}">${h.pctM===null?'—':h.pctM+'%'}</span>
+        </div>`).join('')}
+    </div>`;
+
+  // ── Previsão de conclusão ────────────────────────────────────────────────
+  const abertas = et.filter(t=>t.statusExecucao!=='3 - Concluída');
+  const sete = new Date(hoje); sete.setDate(sete.getDate()-7);
+  const seteStr = sete.toISOString().slice(0,10);
+  const conclRecentes = et.filter(t=>t.statusExecucao==='3 - Concluída' && t.dataConclusao && t.dataConclusao>=seteStr).length;
+  const velocidade = conclRecentes / 7; // tarefas/dia
+  let previsaoHtml;
+  if(abertas.length===0){
+    previsaoHtml = `<div style="font-size:13px;color:var(--success);font-weight:600;padding:12px 0">✅ Fechamento concluído!</div>`;
+  } else if(velocidade===0){
+    previsaoHtml = `<div style="font-size:13px;color:var(--muted);padding:12px 0">Sem ritmo nos últimos 7 dias — impossível projetar.</div>`;
+  } else {
+    const diasNec = Math.ceil(abertas.length / velocidade);
+    const projData = new Date(hoje); projData.setDate(projData.getDate()+diasNec);
+    const projStr = projData.toISOString().slice(0,10);
+    const deadlines = porEmp.filter(e=>e.fech&&e.fech.deadline).map(e=>e.fech.deadline);
+    const deadlineMin = deadlines.length ? deadlines.sort()[0] : null;
+    const atrasado = deadlineMin && projStr > deadlineMin;
+    const projLabel = projData.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+    const deadLabel = deadlineMin ? new Date(deadlineMin+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : null;
+    previsaoHtml = `
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <span style="font-size:24px;font-weight:700;color:${atrasado?'var(--danger)':'var(--success)'}">${projLabel}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ritmo: ${velocidade.toFixed(1)} tarefa${velocidade!==1?'s':''}/dia · ${abertas.length} restante${abertas.length!==1?'s':''}</div>
+      ${deadlineMin?`<div style="font-size:12px;color:${atrasado?'var(--danger)':'var(--muted)'}">
+        ${atrasado?`⚠ Projeção ultrapassa o deadline (${deadLabel})`:`✅ Dentro do deadline (${deadLabel})`}
+      </div>`:''}`;
+  }
+  document.getElementById('dash-previsao').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:10px">Previsão de conclusão</div>
+    ${previsaoHtml}`;
+
+  // ── Carga por responsável ────────────────────────────────────────────────
+  const cargaMap = {};
+  et.filter(t=>t.statusExecucao!=='3 - Concluída').forEach(t=>{
+    const r = t.responsavel || 'Sem responsável';
+    if(!cargaMap[r]) cargaMap[r]={total:0,vencidas:0};
+    cargaMap[r].total++;
+    if(t.dataVencimento && t.dataVencimento < hojeStr) cargaMap[r].vencidas++;
+  });
+  const cargaList = Object.entries(cargaMap).sort((a,b)=>b[1].total-a[1].total);
+  const maxCarga = cargaList.length ? cargaList[0][1].total : 1;
+  const totalNoPrazo = cargaList.reduce((s,[,d])=>s+(d.total-d.vencidas),0);
+  const totalVencidas2 = cargaList.reduce((s,[,d])=>s+d.vencidas,0);
+  const totalGeral = cargaList.reduce((s,[,d])=>s+d.total,0);
+  document.getElementById('dash-carga').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">Tarefas em aberto por responsável</div>
+    ${cargaList.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:1.5px solid var(--border-light)">
+          <th style="text-align:left;padding:6px 8px 6px 0;color:var(--muted);font-weight:600">Responsável</th>
+          <th style="text-align:center;padding:6px 8px;color:#378ADD;font-weight:600">No prazo</th>
+          <th style="text-align:center;padding:6px 8px;color:#E24B4A;font-weight:600">Vencidas</th>
+          <th style="text-align:center;padding:6px 0 6px 8px;color:var(--muted);font-weight:600">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${cargaList.map(([nome,d])=>`
+          <tr style="border-bottom:0.5px solid var(--border-light)">
+            <td style="padding:7px 8px 7px 0;color:var(--dark);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${nome}">${nome}</td>
+            <td style="text-align:center;padding:7px 8px;color:#378ADD;font-weight:600">${d.total-d.vencidas}</td>
+            <td style="text-align:center;padding:7px 8px;color:${d.vencidas>0?'#E24B4A':'var(--muted)'};font-weight:600">${d.vencidas}</td>
+            <td style="text-align:center;padding:7px 0 7px 8px;color:var(--dark);font-weight:700">${d.total}</td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:1.5px solid var(--border-light)">
+          <td style="padding:7px 8px 0 0;color:var(--muted);font-weight:700;font-size:11px">TOTAL</td>
+          <td style="text-align:center;padding:7px 8px 0;color:#378ADD;font-weight:700">${totalNoPrazo}</td>
+          <td style="text-align:center;padding:7px 8px 0;color:${totalVencidas2>0?'#E24B4A':'var(--muted)'};font-weight:700">${totalVencidas2}</td>
+          <td style="text-align:center;padding:7px 0 0 8px;color:var(--dark);font-weight:700">${totalGeral}</td>
+        </tr>
+      </tfoot>
+    </table>`
+    : '<div style="font-size:13px;color:var(--muted);padding:12px 0">Nenhuma tarefa aberta.</div>'}`;
+
+  // ── Obrigações legais pendentes ──────────────────────────────────────────
+  const obrig = et.filter(t=>t.statusExecucao!=='3 - Concluída' && t.solicitante==='Obrigação legal / Regulatória');
+  document.getElementById('dash-obrigacoes').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">
+      Obrigações legais pendentes
+      ${obrig.length?`<span style="margin-left:8px;font-size:11px;background:#fdecea;color:#a32d2d;padding:2px 8px;border-radius:10px;font-weight:600">${obrig.length}</span>`:''}
+    </div>
+    ${obrig.length ? obrig.map(t=>{
+      const venc = t.dataVencimento < hojeStr;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border-light);font-size:12px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${venc?'#E24B4A':'#EF9F27'};flex-shrink:0"></div>
+        <span style="flex:1;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tarefa}">${t.tarefa}</span>
+        <span style="color:var(--muted);min-width:48px">${t.empresa}</span>
+        <span style="font-size:11px;color:${venc?'#a32d2d':'#a05c00'};font-weight:600">${venc?'Vencida':fmtDate(t.dataVencimento)}</span>
+      </div>`;
+    }).join('')
+    : '<div style="font-size:13px;color:var(--success);padding:12px 0">✅ Nenhuma obrigação legal pendente.</div>'}`;
+
+  // ── Gargalos recorrentes ─────────────────────────────────────────────────
+  const atrasadasHist = tasks.filter(t=>
+    t.statusPrazo && t.statusPrazo.includes('Expirado') && t.dataVencimento &&
+    (!filtroNivel || nivelRaizNome(t.nivelId)===filtroNivel)
+  );
+  const gargMap = {};
+  atrasadasHist.forEach(t=>{
+    const mes = (t.dataVencimento||'').slice(0,7);
+    const key = `${t.tarefa}||${t.empresa}`;
+    if(!gargMap[key]) gargMap[key]={nome:t.tarefa, meses:new Set(), empresa:t.empresa};
+    gargMap[key].meses.add(mes);
+  });
+  const gargalos = Object.values(gargMap)
+    .filter(g=>g.meses.size>=2)
+    .sort((a,b)=>b.meses.size-a.meses.size)
+    .slice(0,6);
+
+  const atrasadasAtuais = et.filter(t=>t.statusExecucao!=='3 - Concluída' && t.dataVencimento && t.dataVencimento<hojeStr)
+    .sort((a,b)=>a.dataVencimento.localeCompare(b.dataVencimento));
+  const gargalosExtras = atrasadasAtuais
+    .filter(t=>!gargalos.find(g=>g.nome===t.tarefa && g.empresa===t.empresa))
+    .slice(0, Math.max(0, 5-gargalos.length));
+
+  document.getElementById('dash-gargalos').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">Gargalos recorrentes</div>
+    ${gargalos.length ? gargalos.map(g=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border-light);font-size:12px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#E24B4A;flex-shrink:0"></div>
+        <span style="flex:1;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.nome}">${g.nome}</span>
+        <span style="font-size:11px;font-weight:700;color:var(--muted);font-family:monospace;margin-right:4px">${g.empresa}</span>
+        <span style="font-size:11px;background:#fdecea;color:#a32d2d;padding:1px 7px;border-radius:10px;font-weight:600;flex-shrink:0">${g.meses.size}× atrasou</span>
+      </div>`).join('')
+    : gargalosExtras.length ? `
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Sem recorrência histórica — vencidas no período:</div>
+      ${gargalosExtras.map(t=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border-light);font-size:12px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#EF9F27;flex-shrink:0"></div>
+          <span style="flex:1;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tarefa}">${t.tarefa}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);font-family:monospace">${t.empresa}</span>
+        </div>`).join('')}`
+    : '<div style="font-size:13px;color:var(--success);padding:12px 0">✅ Nenhum gargalo identificado.</div>'}`;
+}
+
+function abrirTarefasFiltradas(tipo, empresa){
+  const mes = document.getElementById('dash-filtro-mes')?.value || '';
+  window._dashFiltro = tipo==='aprovacao' ? { tipo } : null;
+  navigate('tarefas');
+  setTimeout(()=>{
+    document.getElementById('search-input').value        = '';
+    document.getElementById('filter-ind').value          = '';
+    document.getElementById('filter-empresa').value      = empresa || '';
+    document.getElementById('filter-competencia').value  = mes;
+    document.getElementById('filter-status').value       = tipo==='vencidas' ? '__vencidas__' : '';
+    renderTasks();
+  }, 80);
+}
+
+function limparDashFiltro(){
+  window._dashFiltro = null;
+  document.getElementById('dash-filtro-banner').style.display = 'none';
+  renderTasks();
 }
 
 // ── TASKS ─────────────────────────────────────────────────────────────────────
@@ -2444,16 +2758,55 @@ function populateFilters(){
   sel.innerHTML = '<option value="">Todas as empresas</option>' + empresas.map(e=>`<option ${e===current?'selected':''}>${e}</option>`).join('');
   const dl = document.getElementById('empresas-list');
   dl.innerHTML = empresas.map(e=>`<option value="${e}">`).join('');
+
+  // Competências: últimos 12 meses + meses existentes nas tarefas
+  const selComp = document.getElementById('filter-competencia');
+  const currentComp = selComp.value;
+  const hoje = new Date();
+  const mesesOpts = [];
+  for(let i=11; i>=0; i--){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleString('pt-BR',{month:'long',year:'numeric'});
+    mesesOpts.push({val,lbl});
+  }
+  // adiciona meses das tarefas que estejam fora dos últimos 12
+  const mesesExtras = [...new Set(tasks.map(t=>(t.dataVencimento||'').slice(0,7)).filter(Boolean))]
+    .filter(m=>!mesesOpts.find(o=>o.val===m)).sort();
+  mesesExtras.forEach(m=>{
+    const d = new Date(m+'-02');
+    mesesOpts.unshift({val:m, lbl:d.toLocaleString('pt-BR',{month:'long',year:'numeric'})});
+  });
+  selComp.innerHTML = '<option value="">Todas as competências</option>' +
+    mesesOpts.map(o=>`<option value="${o.val}"${currentComp===o.val?' selected':''}>${o.lbl}</option>`).join('');
 }
 function renderTasks(){
   const q = document.getElementById('search-input').value.toLowerCase();
-  const fe = document.getElementById('filter-empresa').value;
-  const fs = document.getElementById('filter-status').value;
-  const fi = document.getElementById('filter-ind').value;
+  const fe   = document.getElementById('filter-empresa').value;
+  const fs   = document.getElementById('filter-status').value;
+  const fi   = document.getElementById('filter-ind').value;
+  const fmes = document.getElementById('filter-competencia').value;
+  const df   = window._dashFiltro;
+  const hojeStr2 = new Date().toISOString().slice(0,10);
+
+  // banner só para aprovações pendentes (sem dropdown equivalente)
+  const banner = document.getElementById('dash-filtro-banner');
+  if(df?.tipo==='aprovacao' && banner){
+    document.getElementById('dash-filtro-banner-txt').textContent = 'Aprovações pendentes aguardando gestor';
+    banner.style.display = 'flex';
+  } else if(banner){
+    banner.style.display = 'none';
+  }
+
   const et = enrichedTasks().filter(t=>{
-    if(t.isTemplate) return false; // templates ficam fora da lista
+    if(t.isTemplate) return false;
+    if(df?.tipo==='aprovacao') return t.statusAprovacao==='Pendente';
+    if(fmes && !(t.dataVencimento||'').startsWith(fmes)) return false;
     if(fe && t.empresa!==fe) return false;
-    if(fs && t.statusExecucao!==fs) return false;
+    if(fs==='__vencidas__'){
+      if(t.statusExecucao==='3 - Concluída') return false;
+      if(!(t.dataVencimento && t.dataVencimento<hojeStr2)) return false;
+    } else if(fs && t.statusExecucao!==fs) return false;
     if(fi && t.indicador!==fi) return false;
     if(q && !t.tarefa.toLowerCase().includes(q) && !t.empresa.toLowerCase().includes(q) && !t.responsavel.toLowerCase().includes(q)) return false;
     return true;
@@ -2615,6 +2968,11 @@ function openModal(id=null){
   empSel.innerHTML = '<option value="">— Selecionar —</option>' +
     empresas_cad.filter(e=>e.status==='Ativa').map(e=>`<option value="${e.codigo}">${e.codigo} — ${e.razao}</option>`).join('');
 
+  // popular select de competência (12 meses atrás + 3 à frente)
+  popularSelectCompetencia('f-competencia');
+  document.getElementById('f-competencia').value = '';
+  atualizarObrigCompetencia();
+
   // popular select de níveis
   (function buildNivelOpts(pai, depth, sel){
     niveis_cad.filter(n=>n.pai===pai).forEach(n=>{
@@ -2652,6 +3010,8 @@ function openModal(id=null){
     document.getElementById('f-exec').value=t.statusExecucao||'1 - Em aberto';
     document.getElementById('f-concl').value=t.dataConclusao||'';
     document.getElementById('f-nivel').value=t.nivelId||'';
+    document.getElementById('f-competencia').value=t.competencia||'';
+    atualizarObrigCompetencia();
     // recorrência na edição
     if(t.isTemplate){
       document.getElementById('f-recorrente').checked=true;
@@ -2701,6 +3061,35 @@ function closeModal(){ document.getElementById('modal-overlay').classList.remove
 
 function onSolicitanteChange(){ calcIndicador(); }
 
+function popularSelectCompetencia(elId){
+  const sel = document.getElementById(elId);
+  const cur = sel.value;
+  const hoje = new Date();
+  const opts = [];
+  for(let i=12; i>=-3; i--){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleString('pt-BR',{month:'short'}).replace('.','').replace(/^\w/,c=>c.toUpperCase()) + '/' + d.getFullYear();
+    opts.push(`<option value="${val}"${cur===val?' selected':''}>${lbl}</option>`);
+  }
+  sel.innerHTML = '<option value="">— Selecionar —</option>' + opts.join('');
+}
+
+function atualizarObrigCompetencia(){
+  const temNivel = !!document.getElementById('f-nivel').value;
+  const obrig = document.getElementById('f-competencia-obrig');
+  if(obrig) obrig.style.display = temNivel ? '' : 'none';
+}
+
+function sugerirCompetencia(){
+  atualizarObrigCompetencia();
+  const sel = document.getElementById('f-competencia');
+  if(sel && !sel.value){
+    const hoje = new Date();
+    sel.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+
 function calcIndicador(){
   const solic   = document.getElementById('f-solic').value;
   const nivelId = parseInt(document.getElementById('f-nivel').value)||null;
@@ -2746,6 +3135,7 @@ function saveTask(){
     statusExecucao: document.getElementById('f-exec').value,
     dataConclusao: document.getElementById('f-concl').value,
     nivelId: parseInt(document.getElementById('f-nivel').value)||null,
+    competencia: document.getElementById('f-competencia').value||null,
     statusAprovacao: editingId ? (tasks.find(t=>t.id===editingId)?.statusAprovacao||null) : (currentUserPerfil()==='Operacional' ? 'pendente' : null),
     criadoPor: editingId ? (tasks.find(t=>t.id===editingId)?.criadoPor||CURRENT_USER) : CURRENT_USER,
     motivoRejeicao: editingId ? (tasks.find(t=>t.id===editingId)?.motivoRejeicao||null) : null,
@@ -2872,6 +3262,11 @@ function openGerarMesModal(){
   gmNivel.innerHTML = '<option value="">Todos os processos</option>' +
     raizIds.map(rid=>{ const n=niveis_cad.find(x=>x.id===rid); return n?`<option value="${rid}">${n.nome}</option>`:''; }).join('');
 
+  // popula e pré-seleciona competência com o mês/ano selecionados
+  popularSelectCompetencia('gm-competencia');
+  document.getElementById('gm-competencia').value =
+    `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+
   atualizarPreviewGerar();
   document.getElementById('gerar-mes-overlay').classList.add('open');
 }
@@ -2934,6 +3329,7 @@ function confirmarGerarMes(){
   const mes    = parseInt(document.getElementById('gm-mes').value);
   const ano    = parseInt(document.getElementById('gm-ano').value);
   const mesRef = `${ano}-${String(mes+1).padStart(2,'0')}`;
+  const competencia = document.getElementById('gm-competencia').value || mesRef;
   let gerados  = 0;
 
   document.querySelectorAll('.gm-chk:checked').forEach(chk=>{
@@ -2951,6 +3347,7 @@ function confirmarGerarMes(){
       templateId: t.id,
       mesReferencia: mesRef,
       dataVencimento: dataVenc,
+      competencia,
       possuiPrazo: 'Sim',
       statusExecucao: '1 - Em aberto',
       dataConclusao: '',
@@ -3212,6 +3609,8 @@ let nextUserId = 1;
 
 let empresas_cad = [];
 let nextEmpId = 1;
+let competencias_cad = [];
+let _editCompId = null;
 
 const NIVEL_PONTUAL_ID = 8;
 let niveis_cad = [
@@ -3296,7 +3695,7 @@ let nextCobId  = 1;
 
 // ── Sub-navegação ─────────────────────────────────────────────────────────
 function setCadTab(tab){
-  ['usuarios','empresas','departamentos','niveis','tarefas-cad','processos'].forEach(t=>{
+  ['usuarios','empresas','departamentos','niveis','tarefas-cad','processos','competencias'].forEach(t=>{
     document.getElementById('cad-'+t).style.display = t===tab ? '' : 'none';
     const btnId = 'ctab-'+(t==='tarefas-cad'?'tarefas':t);
     const btn = document.getElementById(btnId);
@@ -3308,6 +3707,195 @@ function setCadTab(tab){
   if(tab==='niveis')        renderNiveis();
   if(tab==='tarefas-cad')   renderTipos();
   if(tab==='processos')     renderProcessos();
+  if(tab==='competencias')  renderCompetencias();
+}
+
+// ── COMPETÊNCIAS ──────────────────────────────────────────────────────────────
+function fmtMesComp(yyyymm){
+  if(!yyyymm) return '—';
+  const [y,m] = yyyymm.split('-');
+  const d = new Date(+y, +m-1, 1);
+  return d.toLocaleString('pt-BR',{month:'short'}).replace('.','').replace(/^\w/,c=>c.toUpperCase()) + '/' + y;
+}
+
+function renderCompetencias(){
+  // popula filtro de meses
+  const filtroMesEl = document.getElementById('comp-filtro-mes');
+  const curMes = filtroMesEl.value;
+  const meses = [...new Set(competencias_cad.map(c=>c.mes))].sort().reverse();
+  filtroMesEl.innerHTML = '<option value="">Todos os meses</option>' +
+    meses.map(m=>`<option value="${m}"${curMes===m?' selected':''}>${fmtMesComp(m)}</option>`).join('');
+
+  const filtroStatus = document.getElementById('comp-filtro-status').value;
+  const filtroMes    = filtroMesEl.value;
+
+  let lista = competencias_cad.slice();
+  if(filtroMes)    lista = lista.filter(c=>c.mes===filtroMes);
+  if(filtroStatus) lista = lista.filter(c=>c.status===filtroStatus);
+  lista.sort((a,b)=> a.mes<b.mes?1:a.mes>b.mes?-1: (a.empresa||'').localeCompare(b.empresa||''));
+
+  document.getElementById('cad-comp-count').textContent = lista.length;
+
+  const tbody = document.getElementById('cad-comp-tbody');
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Nenhuma competência encontrada.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = lista.map(c=>{
+    const badge = c.status==='fechada'
+      ? '<span style="background:#e8faf0;color:#1a7a4a;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">Fechada</span>'
+      : '<span style="background:#fff8e1;color:#b45309;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">Aberta</span>';
+    const prazo = c.deadline
+      ? new Date(c.deadline+'T12:00:00').toLocaleDateString('pt-BR')
+      : '—';
+    return `<tr>
+      <td style="font-weight:600">${fmtMesComp(c.mes)}</td>
+      <td>${c.empresa}</td>
+      <td>${prazo}</td>
+      <td>${badge}</td>
+      <td style="color:var(--muted);font-size:12px">${c.observacao||'—'}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="cad-action-btn" onclick="openCompModal('${c.id}')">✎ Editar</button>
+        <button class="cad-action-btn danger" onclick="deleteComp('${c.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// diálogo customizado com 3 botões: Sim / Não / Cancelar
+// retorna Promise<'sim'|'nao'|'cancelar'>
+function choiceDialog(msg){
+  return new Promise(resolve=>{
+    document.getElementById('comp-choice-msg').textContent = msg;
+    const ov = document.getElementById('comp-choice-overlay');
+    ov.classList.add('open');
+    const close = r => { ov.classList.remove('open'); resolve(r); };
+    document.getElementById('comp-choice-sim').onclick     = ()=>close('sim');
+    document.getElementById('comp-choice-nao').onclick     = ()=>close('nao');
+    document.getElementById('comp-choice-cancelar').onclick= ()=>close('cancelar');
+  });
+}
+
+function openCompModal(id=null){
+  _editCompId = id || null;
+  const gerarSec = document.getElementById('comp-gerar-section');
+  const editSec  = document.getElementById('comp-edit-section');
+
+  if(id){
+    // modo edição: mostra seção de edição
+    document.getElementById('comp-modal-title').textContent = 'Editar Competência';
+    document.getElementById('comp-btn-salvar').textContent  = '💾 Salvar';
+    gerarSec.style.display = 'none';
+    editSec.style.display  = '';
+    const c = competencias_cad.find(x=>x.id===id);
+    if(c){
+      document.getElementById('comp-mes-edit').value     = fmtMesComp(c.mes);
+      document.getElementById('comp-empresa-edit').value = c.empresa;
+      document.getElementById('comp-status').value       = c.status || 'aberta';
+      document.getElementById('comp-obs').value          = c.observacao || '';
+    }
+  } else {
+    // modo criação: mostra seção de gerar por ano
+    document.getElementById('comp-modal-title').textContent = 'Gerar Competências por Ano';
+    document.getElementById('comp-btn-salvar').textContent  = '✔ Gerar';
+    gerarSec.style.display = '';
+    editSec.style.display  = 'none';
+    document.getElementById('comp-ano').value          = new Date().getFullYear();
+    document.getElementById('comp-obs-gerar').value    = '';
+    const empSel = document.getElementById('comp-empresa-gerar');
+    empSel.innerHTML = '<option value="">— Selecionar —</option><option value="__todas__">Todas as empresas</option>' +
+      empresas_cad.map(e=>`<option value="${e.codigo}">${e.codigo} — ${e.razao}</option>`).join('');
+  }
+  document.getElementById('comp-modal-overlay').classList.add('open');
+}
+
+function closeCompModal(){
+  document.getElementById('comp-modal-overlay').classList.remove('open');
+}
+
+async function saveComp(){
+  if(_editCompId){
+    // ── edição de registro individual ──
+    const status = document.getElementById('comp-status').value;
+    const obs    = document.getElementById('comp-obs').value.trim();
+    const { error } = await sb.from('competencias').update({ status, observacao: obs||null }).eq('id', _editCompId);
+    if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    const idx = competencias_cad.findIndex(c=>c.id===_editCompId);
+    if(idx>=0){ competencias_cad[idx].status = status; competencias_cad[idx].observacao = obs||null; }
+    closeCompModal();
+    renderCompetencias();
+    return;
+  }
+
+  // ── geração por ano ──
+  const ano     = parseInt(document.getElementById('comp-ano').value);
+  const empresa = document.getElementById('comp-empresa-gerar').value;
+  const obs     = document.getElementById('comp-obs-gerar').value.trim();
+
+  if(!ano || !empresa){ alert('Preencha o ano e selecione a empresa.'); return; }
+
+  if(!empresas_cad.length){ alert('Nenhuma empresa cadastrada. Verifique se você está conectado e possui empresas cadastradas.'); return; }
+  const empresasAlvo = empresa === '__todas__' ? empresas_cad : empresas_cad.filter(e=>e.codigo===empresa);
+  if(!empresasAlvo.length){ alert('Empresa não encontrada.'); return; }
+
+  // verifica se alguma empresa tem prazo configurado
+  const semPrazo = empresasAlvo.filter(e=>!calcDataFechamento(e,`${ano}-01`));
+  if(semPrazo.length === empresasAlvo.length){
+    alert('Nenhuma das empresas selecionadas possui prazo de fechamento configurado.\nConfigure em Cadastros → Empresas.'); return;
+  }
+  if(semPrazo.length > 0){
+    if(!confirm(`As empresas a seguir não possuem prazo de fechamento e serão ignoradas:\n${semPrazo.map(e=>e.codigo).join(', ')}\n\nDeseja continuar?`)) return;
+  }
+
+  const hojeYM = new Date().toISOString().slice(0,7); // YYYY-MM
+  const meses  = Array.from({length:12},(_,i)=>`${ano}-${String(i+1).padStart(2,'0')}`);
+  const mesesPassados = meses.filter(m=>m < hojeYM);
+
+  let incluirPassados = true;
+  if(mesesPassados.length > 0){
+    const labels = mesesPassados.map(m=>fmtMesComp(m)).join(', ');
+    const resp = await choiceDialog(
+      `Os meses a seguir são anteriores ao mês atual:\n${labels}\n\nDeseja cadastrá-los também?\n\nSim = cadastra todos  |  Não = apenas meses a partir de ${fmtMesComp(hojeYM)}  |  Cancelar = abortar`
+    );
+    if(resp === 'cancelar') return;
+    incluirPassados = resp === 'sim';
+  }
+
+  const mesesFiltrados = incluirPassados ? meses : meses.filter(m=>m >= hojeYM);
+
+  // monta registros a inserir (pula existentes)
+  const rows = [];
+  for(const emp of empresasAlvo){
+    if(!calcDataFechamento(emp, `${ano}-01`)) continue;
+    for(const mes of mesesFiltrados){
+      const jaExiste = competencias_cad.find(c=>c.mes===mes && c.empresa===emp.codigo);
+      if(jaExiste) continue;
+      const deadline = calcDataFechamento(emp, mes);
+      rows.push({ cliente_id:_clienteId, empresa_id:emp._sbId, mes, deadline, status:'aberta', observacao:obs||null });
+    }
+  }
+
+  if(!rows.length){ alert('Todos os meses selecionados já estão cadastrados para a(s) empresa(s) informada(s).'); return; }
+
+  const { data, error } = await sb.from('competencias').insert(rows).select();
+  if(error){ alert('Erro ao gerar: ' + error.message); return; }
+
+  for(const r of data){
+    competencias_cad.push({ id:r.id, mes:r.mes, empresa:_uuidToEmpresa[r.empresa_id], deadline:r.deadline, status:r.status, observacao:r.observacao||null });
+  }
+
+  closeCompModal();
+  renderCompetencias();
+  alert(`${data.length} competência${data.length!==1?'s':''} gerada${data.length!==1?'s':''} com sucesso.`);
+}
+
+async function deleteComp(id){
+  if(!confirm('Excluir esta competência?')) return;
+  const { error } = await sb.from('competencias').delete().eq('id', id);
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  competencias_cad = competencias_cad.filter(c=>c.id!==id);
+  renderCompetencias();
 }
 
 // ── DEPARTAMENTOS ─────────────────────────────────────────────────────────────

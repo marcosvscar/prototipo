@@ -3130,15 +3130,27 @@ function onSolicitanteChange(){ calcIndicador(); }
 function popularSelectCompetencia(elId){
   const sel = document.getElementById(elId);
   const cur = sel.value;
-  const hoje = new Date();
-  const opts = [];
-  for(let i=12; i>=-3; i--){
-    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const lbl = d.toLocaleString('pt-BR',{month:'short'}).replace('.','').replace(/^\w/,c=>c.toUpperCase()) + '/' + d.getFullYear();
-    opts.push(`<option value="${val}"${cur===val?' selected':''}>${lbl}</option>`);
+  let opts = [];
+
+  const abertas = [...new Set(
+    competencias_cad.filter(c=>c.status==='aberta').map(c=>c.mes)
+  )].sort().reverse();
+
+  if(abertas.length){
+    // usa apenas competências abertas cadastradas
+    opts = abertas.map(m=>`<option value="${m}"${cur===m?' selected':''}>${fmtMesComp(m)}</option>`);
+  } else {
+    // fallback: 12 meses passados + 3 futuros
+    const hoje = new Date();
+    for(let i=12; i>=-3; i--){
+      const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      opts.push(`<option value="${val}"${cur===val?' selected':''}>${fmtMesComp(val)}</option>`);
+    }
   }
-  sel.innerHTML = '<option value="">— Selecionar —</option>' + opts.join('');
+
+  sel.innerHTML = '<option value="">— Selecionar —</option>' + opts.join('') +
+    `<option value="NA"${cur==='NA'?' selected':''}>N/A — Sem competência</option>`;
 }
 
 function atualizarObrigCompetencia(){

@@ -104,8 +104,9 @@ tbody tr:hover{background:#fafbfc}
 .act-btn:hover{opacity:1;background:var(--bg)}
 
 /* TOOLBAR */
-.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.toolbar-l{display:flex;gap:10px;align-items:center}
+.toolbar{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.toolbar-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.toolbar-l{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .btn-primary{background:var(--primary);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700;transition:background .15s;display:flex;align-items:center;gap:6px}
 .btn-primary:hover{background:var(--primary-l)}
 .btn-danger{background:var(--danger);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700}
@@ -566,10 +567,23 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
     <!-- TAREFAS VIEW -->
     <div id="view-tarefas" class="view">
       <div class="toolbar">
-        <div class="toolbar-l">
-          <button class="btn-primary" onclick="openModal()">＋ Nova Tarefa</button>
-          <button class="btn-secondary" onclick="openGerarMesModal()" style="background:#fff;border:1px solid #dde3ea;color:var(--primary);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">📅 Gerar mês</button>
-          <input class="search-input" id="search-input" placeholder="🔍  Buscar tarefa..." oninput="renderTasks()">
+        <!-- Linha 1: ações + contagem + toggle -->
+        <div class="toolbar-row" style="justify-content:space-between">
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn-primary" onclick="openModal()">＋ Nova Tarefa</button>
+            <button class="btn-secondary" onclick="openGerarMesModal()" style="background:#fff;border:1px solid #dde3ea;color:var(--primary);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">📅 Gerar mês</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="task-count" style="font-size:12px;color:var(--muted)"></span>
+            <div class="view-toggle">
+              <button id="toggle-list" class="toggle-btn active" onclick="setTaskView('list')" title="Ver como lista">☰ Lista</button>
+              <button id="toggle-matrix" class="toggle-btn" onclick="setTaskView('matrix')" title="Ver como matriz">⊞ Matriz</button>
+            </div>
+          </div>
+        </div>
+        <!-- Linha 2: filtros -->
+        <div class="toolbar-row">
+          <input class="search-input" id="search-input" placeholder="🔍  Buscar tarefa..." oninput="renderTasks()" style="flex:1;min-width:160px;max-width:260px">
           <select class="filter-sel" id="filter-empresa" onchange="renderTasks()">
             <option value="">Todas as empresas</option>
           </select>
@@ -591,12 +605,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
             <option value="Pode aguardar">Pode aguardar</option>
           </select>
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span id="task-count" style="font-size:12px;color:var(--muted)"></span>
-          <div class="view-toggle">
-            <button id="toggle-list" class="toggle-btn active" onclick="setTaskView('list')" title="Ver como lista">☰ Lista</button>
-            <button id="toggle-matrix" class="toggle-btn" onclick="setTaskView('matrix')" title="Ver como matriz">⊞ Matriz</button>
-          </div>
+        <div style="display:none">
         </div>
       </div>
 

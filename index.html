@@ -578,6 +578,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
             <div class="view-toggle">
               <button id="toggle-list" class="toggle-btn active" onclick="setTaskView('list')" title="Ver como lista">☰ Lista</button>
               <button id="toggle-matrix" class="toggle-btn" onclick="setTaskView('matrix')" title="Ver como matriz">⊞ Matriz</button>
+              <button id="toggle-templates" class="toggle-btn" onclick="setTaskView('templates')" title="Gerenciar templates recorrentes">🔁 Templates</button>
             </div>
           </div>
         </div>
@@ -639,6 +640,19 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
           <div class="mv-label"><div class="mv-text">IMPORTANTE ↑</div></div>
           <div class="matrix-quadrants" id="matrix-quads"></div>
         </div>
+      </div>
+
+      <!-- TEMPLATES RECORRENTES -->
+      <div id="tasks-templates-view" class="cc" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Tarefa</th><th>Empresa</th><th>Responsável</th><th>Processo</th>
+              <th>Frequência</th><th>Vencimento</th><th style="width:80px">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="templates-tbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -746,9 +760,20 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
         <div class="form-grid">
           <div class="fg">
             <label>Frequência</label>
-            <select id="f-freq">
+            <select id="f-freq" onchange="toggleMesVenc()">
               <option value="Mensal">Mensal</option>
               <option value="Anual">Anual</option>
+            </select>
+          </div>
+          <div class="fg" id="f-mes-venc-wrap" style="display:none">
+            <label>Mês de vencimento</label>
+            <select id="f-mes-venc">
+              <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+              <option value="2">Março</option><option value="3">Abril</option>
+              <option value="4">Maio</option><option value="5">Junho</option>
+              <option value="6">Julho</option><option value="7">Agosto</option>
+              <option value="8">Setembro</option><option value="9">Outubro</option>
+              <option value="10">Novembro</option><option value="11">Dezembro</option>
             </select>
           </div>
           <div class="fg">
@@ -783,27 +808,10 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
     <h3>Gerar tarefas do mês</h3>
     <div class="form-grid" style="margin-bottom:12px">
       <div class="fg">
-        <label>Mês</label>
-        <select id="gm-mes" onchange="atualizarPreviewGerar()">
-          <option value="0">Janeiro</option><option value="1">Fevereiro</option>
-          <option value="2">Março</option><option value="3">Abril</option>
-          <option value="4">Maio</option><option value="5">Junho</option>
-          <option value="6">Julho</option><option value="7">Agosto</option>
-          <option value="8">Setembro</option><option value="9">Outubro</option>
-          <option value="10">Novembro</option><option value="11">Dezembro</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>Ano</label>
-        <input type="number" id="gm-ano" min="2024" max="2035" value="2026" onchange="atualizarPreviewGerar()">
-      </div>
-      <div class="fg">
         <label>Competência</label>
-        <select id="gm-competencia">
-          <option value="">— Selecionar —</option>
-        </select>
+        <select id="gm-competencia" onchange="atualizarPreviewGerar()"></select>
       </div>
-      <div class="fg full">
+      <div class="fg">
         <label>Filtrar por processo</label>
         <select id="gm-nivel" onchange="atualizarPreviewGerar()">
           <option value="">Todos os processos</option>
@@ -1289,11 +1297,12 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
         </select>
         <select id="comp-filtro-status" onchange="renderCompetencias()" style="border:1px solid #dde3ea;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--dark)">
           <option value="">Todos os status</option>
+          <option value="bloqueada">Bloqueada</option>
           <option value="aberta">Aberta</option>
           <option value="fechada">Fechada</option>
         </select>
       </div>
-      <button class="btn-primary" onclick="openCompModal()">+ Nova Competência</button>
+      <button class="btn-primary" onclick="openCompModal()">➕ Novo período</button>
     </div>
     <div class="cad-table-wrap">
       <table class="cad-table">
@@ -1735,7 +1744,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
           <textarea id="comp-obs-gerar" rows="2" style="resize:vertical"></textarea>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Serão geradas as 12 competências do ano. Meses já cadastrados serão ignorados.</p>
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Serão geradas as 12 competências do ano com status <b>Bloqueada</b> — abra o período quando o mês iniciar. Meses já cadastrados serão ignorados.</p>
     </div>
 
     <!-- seção: editar registro individual -->
@@ -1752,9 +1761,11 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
         <div class="fg">
           <label>Status</label>
           <select id="comp-status">
+            <option value="bloqueada">Bloqueada</option>
             <option value="aberta">Aberta</option>
             <option value="fechada">Fechada</option>
           </select>
+          <div id="comp-status-hint" style="display:none;font-size:11px;color:var(--muted);margin-top:4px">🔒 Apenas o perfil Master pode alterar o status do período.</div>
         </div>
         <div class="fg full">
           <label>Observação</label>
@@ -1922,7 +1933,7 @@ function taskToSb(task) {
       statusAprovacao: task.statusAprovacao, criadoPor: task.criadoPor,
       motivoRejeicao: task.motivoRejeicao, isTemplate: task.isTemplate,
       recorrencia: task.recorrencia, regraVencimento: task.regraVencimento,
-      diaVencimento: task.diaVencimento, templateId: task.templateId,
+      diaVencimento: task.diaVencimento, mesVencimento: task.mesVencimento, templateId: task.templateId,
       mesReferencia: task.mesReferencia, processoNome: task.processoNome,
       processoInstanciaId: task.processoInstanciaId,
     }
@@ -1951,7 +1962,7 @@ function sbToTask(row) {
     statusAprovacao: x.statusAprovacao || null, criadoPor: x.criadoPor || '',
     motivoRejeicao: x.motivoRejeicao || null, isTemplate: x.isTemplate || false,
     recorrencia: x.recorrencia || null, regraVencimento: x.regraVencimento || null,
-    diaVencimento: x.diaVencimento || null, templateId: x.templateId || null,
+    diaVencimento: x.diaVencimento || null, mesVencimento: x.mesVencimento ?? null, templateId: x.templateId || null,
     mesReferencia: x.mesReferencia || null, processoNome: x.processoNome || null,
     processoInstanciaId: x.processoInstanciaId || null,
     competencia: row.competencia || null,
@@ -2264,7 +2275,10 @@ function enrichTask(t){
   const departamento = u?.departamento||'—';
   return {...t, urgente, importante, indicador: ind, pesoBase: PESO_BASE[ind]||0, score, statusPrazo: getStatusPrazo(t), departamento};
 }
-function enrichedTasks(){ return tasks.map(enrichTask); }
+// templates recorrentes ficam fora de todas as visões operacionais (lista, matriz, dashboard, calendário, relatórios)
+function enrichedTasks(){ return tasks.filter(t=>!t.isTemplate).map(enrichTask); }
+// ids podem ser numéricos (legado/local) ou UUID (Supabase) — comparação sempre por string
+function findTaskById(id){ return tasks.find(t=>String(t.id)===String(id)); }
 function save(){
   localStorage.setItem('ct_tasks', JSON.stringify(tasks));
   if (_clienteId) {
@@ -2309,9 +2323,13 @@ function setTaskView(mode){
   taskViewMode = mode;
   document.getElementById('tasks-list-view').style.display = mode==='list' ? '' : 'none';
   document.getElementById('tasks-matrix-view').style.display = mode==='matrix' ? '' : 'none';
+  document.getElementById('tasks-templates-view').style.display = mode==='templates' ? '' : 'none';
   document.getElementById('toggle-list').classList.toggle('active', mode==='list');
   document.getElementById('toggle-matrix').classList.toggle('active', mode==='matrix');
+  document.getElementById('toggle-templates').classList.toggle('active', mode==='templates');
+  if(mode==='list') renderTasks();
   if(mode==='matrix') renderMatrix();
+  if(mode==='templates') renderTemplates();
 }
 
 function toggleFechamentoLabel(){
@@ -2847,6 +2865,7 @@ function populateFilters(){
     mesesOpts.map(o=>`<option value="${o.val}"${currentComp===o.val?' selected':''}>${o.lbl}</option>`).join('');
 }
 function renderTasks(){
+  if(taskViewMode==='templates'){ renderTemplates(); return; }
   const q = document.getElementById('search-input').value.toLowerCase();
   const fe   = document.getElementById('filter-empresa').value;
   const fs   = document.getElementById('filter-status').value;
@@ -2866,7 +2885,7 @@ function renderTasks(){
 
   const et = enrichedTasks().filter(t=>{
     if(t.isTemplate) return false;
-    if(df?.tipo==='aprovacao') return t.statusAprovacao==='Pendente';
+    if(df?.tipo==='aprovacao') return t.statusAprovacao==='pendente';
     if(fmes && !(t.dataVencimento||'').startsWith(fmes)) return false;
     if(fe && t.empresa!==fe) return false;
     if(fs==='__vencidas__'){
@@ -2903,10 +2922,10 @@ function renderTasks(){
       <td>${t.statusAprovacao==='pendente'?'<span class="badge b-pend-aprov">⏳ Pend. aprovação</span>':t.statusAprovacao==='rejeitada'?'<span class="badge b-late">✕ Rejeitada</span>':t.statusExecucao==='3 - Concluída'?'<span class="badge b-concl">✓ Concluída</span>':t.statusExecucao==='2 - Em andamento'?'<span class="badge b-prog">▶ Em andamento</span>':'<span class="badge b-abert">◷ Em aberto</span>'}</td>
       <td>${badgePrazo(t.statusPrazo)}</td>
       <td>
-        ${t.statusExecucao==='1 - Em aberto'?`<button class="act-btn" title="Iniciar" onclick="quickStart(${t.id})">▶</button>`:''}
-        ${t.statusExecucao==='2 - Em andamento'?`<button class="act-btn" title="Concluir" onclick="quickDone(${t.id})">✓</button>`:''}
-        <button class="act-btn" title="Editar" onclick="editTask(${t.id})">✏️</button>
-        <button class="act-btn" title="Excluir" onclick="askDelete(${t.id})">🗑</button>
+        ${t.statusExecucao==='1 - Em aberto'?`<button class="act-btn" title="Iniciar" onclick="quickStart('${t.id}')">▶</button>`:''}
+        ${t.statusExecucao==='2 - Em andamento'?`<button class="act-btn" title="Concluir" onclick="quickDone('${t.id}')">✓</button>`:''}
+        <button class="act-btn" title="Editar" onclick="editTask('${t.id}')">✏️</button>
+        <button class="act-btn" title="Excluir" onclick="askDelete('${t.id}')">🗑</button>
       </td>
     </tr>
   `).join('');
@@ -3014,6 +3033,9 @@ function openModal(id=null){
   // reset recorrência
   document.getElementById('f-recorrente').checked=false;
   document.getElementById('f-recorrencia-wrap').style.display='none';
+  document.getElementById('f-freq').value='Mensal';
+  document.getElementById('f-mes-venc').value='0';
+  document.getElementById('f-mes-venc-wrap').style.display='none';
   ['f-venc','f-temprazo','f-exec'].forEach(id=>{ const el=document.getElementById(id); if(el) el.closest('.fg').style.display=''; });
   document.getElementById('f-exec').value='1 - Em aberto';
   document.getElementById('f-temprazo').value='Sim';
@@ -3051,7 +3073,7 @@ function openModal(id=null){
   })(null, 0, (()=>{ const s=document.getElementById('f-nivel'); s.innerHTML='<option value="">— Selecionar —</option>'; return s; })());
 
   if(id){
-    const t = tasks.find(t=>t.id===id);
+    const t = findTaskById(id);
     if(!t) return;
     // na edição: oculta o toggle e mostra campos diretos
     document.getElementById('executor-toggle-wrap').style.display='none';
@@ -3085,7 +3107,9 @@ function openModal(id=null){
       document.getElementById('f-freq').value=t.recorrencia||'Mensal';
       document.getElementById('f-regra-venc').value=t.regraVencimento||'diaFixo';
       document.getElementById('f-dia-venc').value=t.diaVencimento||'';
+      document.getElementById('f-mes-venc').value=String(t.mesVencimento ?? 0);
       toggleRegraVenc();
+      toggleMesVenc();
       ['f-venc','f-temprazo','f-exec'].forEach(fid=>{ const el=document.getElementById(fid); if(el){ const fg=el.closest('.fg'); if(fg) fg.style.display='none'; }});
     }
   } else {
@@ -3099,7 +3123,7 @@ function openModal(id=null){
   // painel campos-chave do processo
   const camposPainel = document.getElementById('f-campos-processo-wrap');
   if(id){
-    const t = tasks.find(x=>x.id===id);
+    const t = findTaskById(id);
     const cv = t?.camposProcesso;
     if(cv && Object.keys(cv).length && camposPainel){
       camposPainel.innerHTML = `
@@ -3214,23 +3238,25 @@ function saveTask(){
     dataConclusao: document.getElementById('f-concl').value,
     nivelId: parseInt(document.getElementById('f-nivel').value)||null,
     competencia: document.getElementById('f-competencia').value||null,
-    statusAprovacao: editingId ? (tasks.find(t=>t.id===editingId)?.statusAprovacao||null) : (currentUserPerfil()==='Operacional' ? 'pendente' : null),
-    criadoPor: editingId ? (tasks.find(t=>t.id===editingId)?.criadoPor||CURRENT_USER) : CURRENT_USER,
-    motivoRejeicao: editingId ? (tasks.find(t=>t.id===editingId)?.motivoRejeicao||null) : null,
+    statusAprovacao: editingId ? (findTaskById(editingId)?.statusAprovacao||null) : (currentUserPerfil()==='Operacional' ? 'pendente' : null),
+    criadoPor: editingId ? (findTaskById(editingId)?.criadoPor||CURRENT_USER) : CURRENT_USER,
+    motivoRejeicao: editingId ? (findTaskById(editingId)?.motivoRejeicao||null) : null,
     // recorrência
     isTemplate: document.getElementById('f-recorrente').checked,
     recorrencia: document.getElementById('f-recorrente').checked ? document.getElementById('f-freq').value : null,
     regraVencimento: document.getElementById('f-recorrente').checked ? document.getElementById('f-regra-venc').value : null,
     diaVencimento: document.getElementById('f-recorrente').checked ? parseInt(document.getElementById('f-dia-venc').value)||null : null,
-    templateId: editingId ? (tasks.find(t=>t.id===editingId)?.templateId||null) : null,
-    mesReferencia: editingId ? (tasks.find(t=>t.id===editingId)?.mesReferencia||null) : null,
+    mesVencimento: (document.getElementById('f-recorrente').checked && document.getElementById('f-freq').value==='Anual') ? parseInt(document.getElementById('f-mes-venc').value) : null,
+    templateId: editingId ? (findTaskById(editingId)?.templateId||null) : null,
+    mesReferencia: editingId ? (findTaskById(editingId)?.mesReferencia||null) : null,
   };
-  if(editingId){ const i=tasks.findIndex(t=>t.id===editingId); if(i>-1) tasks[i]=task; }
+  // merge preserva campos que o formulário não edita (processoInstanciaId, camposProcesso, etc.)
+  if(editingId){ const i=tasks.findIndex(t=>String(t.id)===String(editingId)); if(i>-1){ tasks[i]={...tasks[i], ...task}; Object.assign(task, tasks[i]); } }
   else tasks.push(task);
 
   // cascata de processo: detecta atraso/adiantamento e notifica Master
   if(editingId && task.processoInstanciaId && task.dataConclusao && task.dataVencimento){
-    const original = tasks.find(t=>t.id===editingId);
+    const original = findTaskById(editingId);
     const prevVenc  = original?.dataVencimento;
     if(prevVenc && task.dataConclusao !== prevVenc){
       const delta = diffBusinessDays(prevVenc, task.dataConclusao); // positivo = atraso
@@ -3286,7 +3312,7 @@ function toggleRecorrencia(){
   if(vencWrap)     vencWrap.style.display     = on ? 'none' : '';
   if(temPrazoWrap) temPrazoWrap.style.display  = on ? 'none' : '';
   if(execWrap)     execWrap.style.display      = on ? 'none' : '';
-  if(on) toggleRegraVenc();
+  if(on){ toggleRegraVenc(); toggleMesVenc(); }
 }
 
 function toggleRegraVenc(){
@@ -3295,6 +3321,40 @@ function toggleRegraVenc(){
     regra === 'diaUtil' ? 'Nº do dia útil' : 'Dia do mês';
   document.getElementById('f-dia-venc').placeholder =
     regra === 'diaUtil' ? 'Ex: 7 (7º dia útil)' : 'Ex: 10 (dia 10)';
+}
+
+function toggleMesVenc(){
+  const anual = document.getElementById('f-freq').value === 'Anual';
+  document.getElementById('f-mes-venc-wrap').style.display = anual ? '' : 'none';
+}
+
+function descreveRegraVenc(t){
+  const dia = t.regraVencimento==='diaUtil' ? `${t.diaVencimento||'—'}º dia útil` : `dia ${t.diaVencimento||'—'}`;
+  if(t.recorrencia==='Anual') return `${dia} de ${MONTHS_PT[t.mesVencimento ?? 0]}`;
+  return `${dia} do mês`;
+}
+
+function renderTemplates(){
+  const templates = tasks.filter(t=>t.isTemplate);
+  const tbody = document.getElementById('templates-tbody');
+  document.getElementById('task-count').textContent = `${templates.length} template${templates.length!==1?'s':''}`;
+  if(!templates.length){
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div>🔁</div>Nenhum template recorrente. Crie uma tarefa marcando "Tarefa recorrente (template)".</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = templates.map(t=>`
+    <tr>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tarefa}"><b>${t.tarefa}</b></td>
+      <td>${t.empresa}</td>
+      <td>${t.responsavel}</td>
+      <td>${nivelRaizNome(t.nivelId)||'—'}</td>
+      <td><span class="badge b-prog">🔁 ${t.recorrencia||'Mensal'}</span></td>
+      <td>${descreveRegraVenc(t)}</td>
+      <td>
+        <button class="act-btn" title="Editar" onclick="editTask('${t.id}')">✏️</button>
+        <button class="act-btn" title="Excluir" onclick="askDelete('${t.id}')">🗑</button>
+      </td>
+    </tr>`).join('');
 }
 
 function calcDiaUtil(ano, mes, n){
@@ -3319,15 +3379,31 @@ function calcDataVencTemplate(t, ano, mes){
   return `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
 }
 
+// mês/ano de geração derivam da competência selecionada ('YYYY-MM')
+function gmCompetenciaSelecionada(){
+  const mesRef = document.getElementById('gm-competencia').value;
+  const [ano, mes1] = mesRef.split('-').map(Number);
+  return { ano, mes: mes1 - 1, mesRef };
+}
+
 function openGerarMesModal(){
   const templates = tasks.filter(t=>t.isTemplate);
   if(!templates.length){
     alert('Nenhum template recorrente cadastrado. Crie uma tarefa marcando "Tarefa recorrente" primeiro.');
     return;
   }
+  // só competências com status aberta
+  const abertas = [...new Set(competencias_cad.filter(c=>c.status==='aberta').map(c=>c.mes))].sort().reverse();
+  if(!abertas.length){
+    alert('Nenhuma competência aberta. Abra uma competência em Cadastros → Competências antes de gerar tarefas.');
+    return;
+  }
+  const gmComp = document.getElementById('gm-competencia');
+  gmComp.innerHTML = abertas.map(m=>`<option value="${m}">${fmtMesComp(m)}</option>`).join('');
+  // pré-seleciona o mês atual se estiver aberto; senão a competência aberta mais recente
   const hoje = new Date();
-  document.getElementById('gm-mes').value = hoje.getMonth();
-  document.getElementById('gm-ano').value = hoje.getFullYear();
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  gmComp.value = abertas.includes(mesAtual) ? mesAtual : abertas[0];
 
   // popula select de níveis raiz com os que têm templates
   const niveisComTemplate = [...new Set(templates.map(t=>t.nivelId).filter(Boolean))];
@@ -3340,11 +3416,6 @@ function openGerarMesModal(){
   gmNivel.innerHTML = '<option value="">Todos os processos</option>' +
     raizIds.map(rid=>{ const n=niveis_cad.find(x=>x.id===rid); return n?`<option value="${rid}">${n.nome}</option>`:''; }).join('');
 
-  // popula e pré-seleciona competência com o mês/ano selecionados
-  popularSelectCompetencia('gm-competencia');
-  document.getElementById('gm-competencia').value =
-    `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-
   atualizarPreviewGerar();
   document.getElementById('gerar-mes-overlay').classList.add('open');
 }
@@ -3353,8 +3424,11 @@ function closeGerarMesModal(){ document.getElementById('gerar-mes-overlay').clas
 
 function getTemplatesFiltrados(){
   const nivelFiltro = parseInt(document.getElementById('gm-nivel').value)||null;
+  const mesSelecionado = gmCompetenciaSelecionada().mes;
   return tasks.filter(t=>{
     if(!t.isTemplate) return false;
+    // template anual só entra no mês de vencimento configurado
+    if(t.recorrencia==='Anual' && (t.mesVencimento ?? 0)!==mesSelecionado) return false;
     if(!nivelFiltro) return true;
     // verifica se o nivelId do template pertence ao processo selecionado (raiz ou descendente)
     let n = niveis_cad.find(x=>x.id===t.nivelId);
@@ -3367,9 +3441,7 @@ function getTemplatesFiltrados(){
 }
 
 function atualizarPreviewGerar(){
-  const mes    = parseInt(document.getElementById('gm-mes').value);
-  const ano    = parseInt(document.getElementById('gm-ano').value);
-  const mesRef = `${ano}-${String(mes+1).padStart(2,'0')}`;
+  const { ano, mes, mesRef } = gmCompetenciaSelecionada();
   const templates = getTemplatesFiltrados();
   const lista  = document.getElementById('gm-lista');
 
@@ -3382,7 +3454,7 @@ function atualizarPreviewGerar(){
 
   const rows = templates.map(t=>{
     const dataVenc = calcDataVencTemplate(t, ano, mes);
-    const jaExiste = tasks.find(x=>x.templateId===t.id && x.mesReferencia===mesRef);
+    const jaExiste = tasks.find(x=>String(x.templateId)===String(t.id) && x.mesReferencia===mesRef);
     const nivelNome = nivelRaizNome(t.nivelId);
     return `
       <div data-template-id="${t.id}" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid ${jaExiste?'#f5c518':'#eef0f3'};border-radius:8px;margin-bottom:6px;background:${jaExiste?'#fffbea':'#fff'}">
@@ -3397,24 +3469,22 @@ function atualizarPreviewGerar(){
       </div>`;
   }).join('');
 
-  const totalNovos = templates.filter(t=>!tasks.find(x=>x.templateId===t.id && x.mesReferencia===mesRef)).length;
+  const totalNovos = templates.filter(t=>!tasks.find(x=>String(x.templateId)===String(t.id) && x.mesReferencia===mesRef)).length;
   lista.innerHTML =
     `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${templates.length} template${templates.length!==1?'s':''} · <b style="color:var(--primary)">${totalNovos} nova${totalNovos!==1?'s':''}</b> a gerar · Ajuste as datas se necessário</div>` +
     rows;
 }
 
 function confirmarGerarMes(){
-  const mes    = parseInt(document.getElementById('gm-mes').value);
-  const ano    = parseInt(document.getElementById('gm-ano').value);
-  const mesRef = `${ano}-${String(mes+1).padStart(2,'0')}`;
-  const competencia = document.getElementById('gm-competencia').value || mesRef;
+  const { ano, mes, mesRef } = gmCompetenciaSelecionada();
+  const competencia = mesRef;
   let gerados  = 0;
 
   document.querySelectorAll('.gm-chk:checked').forEach(chk=>{
-    const tid = parseInt(chk.dataset.id);
-    const t   = tasks.find(x=>x.id===tid);
+    const tid = chk.dataset.id; // string — ids podem ser UUID
+    const t   = findTaskById(tid);
     if(!t) return;
-    const jaExiste = tasks.find(x=>x.templateId===tid && x.mesReferencia===mesRef);
+    const jaExiste = tasks.find(x=>String(x.templateId)===String(tid) && x.mesReferencia===mesRef);
     if(jaExiste) return;
     const dataInput = document.querySelector(`.gm-data[data-id="${tid}"]`);
     const dataVenc  = dataInput?.value || calcDataVencTemplate(t, ano, mes);
@@ -3444,14 +3514,14 @@ function confirmarGerarMes(){
 }
 
 function quickStart(id){
-  const t = tasks.find(t=>t.id===id);
+  const t = findTaskById(id);
   if(!t) return;
   t.statusExecucao = '2 - Em andamento';
   save(); renderTasks();
 }
 
 function quickDone(id){
-  const t = tasks.find(t=>t.id===id);
+  const t = findTaskById(id);
   if(!t) return;
   const today = new Date().toISOString().split('T')[0];
   const input = prompt('Data de conclusão (AAAA-MM-DD):', today);
@@ -3466,7 +3536,7 @@ function askDelete(id){ deleteId=id; document.getElementById('confirm-overlay').
 function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('open'); deleteId=null; }
 function confirmDelete(){
   sbDeleteTask(deleteId);
-  tasks = tasks.filter(t=>t.id!==deleteId);
+  tasks = tasks.filter(t=>String(t.id)!==String(deleteId));
   save(); closeConfirm(); populateFilters(); renderTasks();
 }
 
@@ -3823,6 +3893,8 @@ function renderCompetencias(){
   tbody.innerHTML = lista.map(c=>{
     const badge = c.status==='fechada'
       ? '<span style="background:#e8faf0;color:#1a7a4a;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">Fechada</span>'
+      : c.status==='bloqueada'
+      ? '<span style="background:#eef0f3;color:#5b6472;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">🔒 Bloqueada</span>'
       : '<span style="background:#fff8e1;color:#b45309;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">Aberta</span>';
     const prazo = c.deadline
       ? new Date(c.deadline+'T12:00:00').toLocaleDateString('pt-BR')
@@ -3873,9 +3945,17 @@ function openCompModal(id=null){
       document.getElementById('comp-status').value       = c.status || 'aberta';
       document.getElementById('comp-obs').value          = c.observacao || '';
     }
+    // só Master altera o status do período
+    const isMaster = currentUserPerfil()==='Master';
+    document.getElementById('comp-status').disabled = !isMaster;
+    document.getElementById('comp-status-hint').style.display = isMaster ? 'none' : '';
   } else {
-    // modo criação: mostra seção de gerar por ano
-    document.getElementById('comp-modal-title').textContent = 'Gerar Competências por Ano';
+    // modo criação: mostra seção de gerar por ano — restrito ao Master
+    if(currentUserPerfil()!=='Master'){
+      alert('Apenas o perfil Master pode criar novos períodos.');
+      return;
+    }
+    document.getElementById('comp-modal-title').textContent = 'Novo período';
     document.getElementById('comp-btn-salvar').textContent  = '✔ Gerar';
     gerarSec.style.display = '';
     editSec.style.display  = 'none';
@@ -3895,7 +3975,11 @@ function closeCompModal(){
 async function saveComp(){
   if(_editCompId){
     // ── edição de registro individual ──
-    const status = document.getElementById('comp-status').value;
+    const original = competencias_cad.find(c=>c.id===_editCompId);
+    // não-Master não altera status (select vem desabilitado; guarda extra aqui)
+    const status = currentUserPerfil()==='Master'
+      ? document.getElementById('comp-status').value
+      : (original?.status || 'aberta');
     const obs    = document.getElementById('comp-obs').value.trim();
     const { error } = await sb.from('competencias').update({ status, observacao: obs||null }).eq('id', _editCompId);
     if(error){ alert('Erro ao salvar: ' + error.message); return; }
@@ -3950,7 +4034,8 @@ async function saveComp(){
       const jaExiste = competencias_cad.find(c=>c.mes===mes && c.empresa===emp.codigo);
       if(jaExiste) continue;
       const deadline = calcDataFechamento(emp, mes);
-      rows.push({ cliente_id:_clienteId, empresa_id:emp._sbId, mes, deadline, status:'aberta', observacao:obs||null });
+      // períodos nascem bloqueados — o Master abre quando o mês inicia
+      rows.push({ cliente_id:_clienteId, empresa_id:emp._sbId, mes, deadline, status:'bloqueada', observacao:obs||null });
     }
   }
 
@@ -3969,6 +4054,7 @@ async function saveComp(){
 }
 
 async function deleteComp(id){
+  if(currentUserPerfil()!=='Master'){ alert('Apenas o perfil Master pode excluir períodos.'); return; }
   if(!confirm('Excluir esta competência?')) return;
   const { error } = await sb.from('competencias').delete().eq('id', id);
   if(error){ alert('Erro ao excluir: ' + error.message); return; }

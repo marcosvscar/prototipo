@@ -6,6 +6,7 @@
 <title>Apura — Gestão de Fechamento Contábil</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --primary: #1a3a5c;
@@ -572,6 +573,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
           <div style="display:flex;gap:10px;align-items:center">
             <button class="btn-primary" onclick="openModal()">＋ Nova Tarefa</button>
             <button class="btn-secondary" onclick="openGerarMesModal()" style="background:#fff;border:1px solid #dde3ea;color:var(--primary);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">📅 Gerar mês</button>
+            <button class="btn-secondary" onclick="openImportModal()" style="background:#fff;border:1px solid #dde3ea;color:var(--primary);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">⬆ Importar</button>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
             <span id="task-count" style="font-size:12px;color:var(--muted)"></span>
@@ -781,6 +783,7 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
             <select id="f-regra-venc" onchange="toggleRegraVenc()">
               <option value="diaFixo">Dia fixo do mês</option>
               <option value="diaUtil">Nº dia útil do mês</option>
+              <option value="diaUtilFim">Nº dia útil antes do fim do mês</option>
             </select>
           </div>
           <div class="fg" id="f-dia-venc-wrap">
@@ -825,6 +828,25 @@ body.auth-loading .sb,body.auth-loading .main{opacity:0;pointer-events:none}
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn-cancel" onclick="closeGerarMesModal()">Cancelar</button>
       <button class="btn-primary" id="gm-btn-gerar" onclick="confirmarGerarMes()">✔ Gerar tarefas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAR CRONOGRAMA -->
+<div class="overlay" id="import-overlay">
+  <div class="modal" style="max-width:780px">
+    <h3>Importar cronograma (Excel/CSV)</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">
+      As linhas viram <b>templates recorrentes</b> — depois use "📅 Gerar mês" para criar as tarefas de cada competência.
+      Colunas esperadas: Empresa, Tarefa, Responsável, Processo, Recorrência, Regra de vencimento, Dia, Mês (se anual), Prazo estimado, Hora limite.
+      <a href="#" onclick="baixarModeloImport();return false" style="color:var(--primary);font-weight:600;white-space:nowrap">⬇ Baixar planilha modelo</a>
+    </p>
+    <input type="file" id="import-file" accept=".xlsx,.xls,.csv" onchange="handleImportFile(this.files[0])"
+      style="display:block;margin-bottom:12px;font-size:13px">
+    <div id="import-preview" style="max-height:340px;overflow:auto"></div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-cancel" onclick="closeImportModal()">Cancelar</button>
+      <button class="btn-primary" id="import-btn-confirmar" onclick="confirmarImport()" disabled>⬆ Importar</button>
     </div>
   </div>
 </div>
@@ -3330,9 +3352,9 @@ function toggleRecorrencia(){
 function toggleRegraVenc(){
   const regra = document.getElementById('f-regra-venc').value;
   document.getElementById('f-dia-venc-label').textContent =
-    regra === 'diaUtil' ? 'Nº do dia útil' : 'Dia do mês';
+    regra === 'diaUtil' ? 'Nº do dia útil' : regra === 'diaUtilFim' ? 'Nº do dia útil (do fim)' : 'Dia do mês';
   document.getElementById('f-dia-venc').placeholder =
-    regra === 'diaUtil' ? 'Ex: 7 (7º dia útil)' : 'Ex: 10 (dia 10)';
+    regra === 'diaUtil' ? 'Ex: 7 (7º dia útil)' : regra === 'diaUtilFim' ? 'Ex: 2 (2º dia útil antes do fim; 1 = último)' : 'Ex: 10 (dia 10)';
 }
 
 function toggleMesVenc(){
@@ -3341,7 +3363,9 @@ function toggleMesVenc(){
 }
 
 function descreveRegraVenc(t){
-  const dia = t.regraVencimento==='diaUtil' ? `${t.diaVencimento||'—'}º dia útil` : `dia ${t.diaVencimento||'—'}`;
+  const dia = t.regraVencimento==='diaUtil' ? `${t.diaVencimento||'—'}º dia útil`
+    : t.regraVencimento==='diaUtilFim' ? `${t.diaVencimento||'—'}º dia útil do fim`
+    : `dia ${t.diaVencimento||'—'}`;
   if(t.recorrencia==='Anual') return `${dia} de ${MONTHS_PT[t.mesVencimento ?? 0]}`;
   return `${dia} do mês`;
 }
@@ -3380,9 +3404,22 @@ function calcDiaUtil(ano, mes, n){
   return diasNoMes; // fallback: último dia do mês
 }
 
+function calcDiaUtilFim(ano, mes, n){
+  // retorna a data do nº dia útil contado do FIM do mês (n=1 → último dia útil)
+  let count = 0;
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  for(let d = diasNoMes; d >= 1; d--){
+    const dow = new Date(ano, mes, d).getDay();
+    if(dow !== 0 && dow !== 6){ count++; if(count === n) return d; }
+  }
+  return 1; // fallback: primeiro dia do mês
+}
+
 function calcDataVencTemplate(t, ano, mes){
-  if(t.regraVencimento === 'diaUtil'){
-    const dia = calcDiaUtil(ano, mes, t.diaVencimento);
+  if(t.regraVencimento === 'diaUtil' || t.regraVencimento === 'diaUtilFim'){
+    const dia = t.regraVencimento === 'diaUtil'
+      ? calcDiaUtil(ano, mes, t.diaVencimento)
+      : calcDiaUtilFim(ano, mes, t.diaVencimento);
     return `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
   }
   // dia fixo — garante que não ultrapassa o último dia do mês
@@ -3523,6 +3560,219 @@ function confirmarGerarMes(){
   renderTasks();
   if(gerados) alert(`${gerados} tarefa${gerados!==1?'s':''} gerada${gerados!==1?'s':''} para ${MONTHS_PT[mes]} ${ano}.`);
   else alert('Nenhuma tarefa nova gerada (todas já existiam ou nenhuma estava marcada).');
+}
+
+// ── IMPORTADOR DE CRONOGRAMA (Excel/CSV → templates) ─────────────────────────
+let _importRows = [];
+
+function openImportModal(){
+  _importRows = [];
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('import-btn-confirmar').disabled = true;
+  document.getElementById('import-overlay').classList.add('open');
+}
+function closeImportModal(){ document.getElementById('import-overlay').classList.remove('open'); }
+
+function baixarModeloImport(){
+  const linhas = [
+    'Empresa;Tarefa;Responsável;Processo;Recorrência;Regra de vencimento;Dia;Mês (se anual);Prazo estimado (dias úteis);Hora limite',
+    'ACME;Conciliação bancária;Maria Silva;Conciliações;Mensal;dia útil;5;;2;',
+    'ACME;Provisão de folha;Maria Silva;Folha de Pagamento;Mensal;dia útil do fim;2;;1;',
+    'ACME;Entrega SPED Contábil;João Souza;SPED Contábil;Anual;dia fixo;31;Maio;5;18:00'
+  ];
+  const blob = new Blob(['﻿'+linhas.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'modelo_cronograma_apura.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function _norm(s){ return String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+
+// parser CSV simples com detecção de separador (; ou ,) e suporte a aspas
+function _parseCsv(text){
+  const sep = (text.split('\n')[0].match(/;/g)||[]).length >= (text.split('\n')[0].match(/,/g)||[]).length ? ';' : ',';
+  const rows = []; let row = [], cell = '', dentroAspas = false;
+  for(let i=0; i<text.length; i++){
+    const ch = text[i];
+    if(dentroAspas){
+      if(ch==='"' && text[i+1]==='"'){ cell+='"'; i++; }
+      else if(ch==='"') dentroAspas = false;
+      else cell += ch;
+    } else if(ch==='"') dentroAspas = true;
+    else if(ch===sep){ row.push(cell); cell=''; }
+    else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+    else if(ch!=='\r') cell += ch;
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+
+function handleImportFile(file){
+  if(!file) return;
+  const ehCsv = /\.csv$/i.test(file.name);
+  if(!ehCsv && typeof XLSX==='undefined'){
+    alert('A biblioteca de leitura de Excel não carregou (verifique a conexão). Alternativa: salve a planilha como CSV e importe o CSV.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    let rows;
+    try{
+      if(ehCsv){
+        rows = _parseCsv(new TextDecoder('utf-8').decode(e.target.result));
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+        rows = rows.filter(r=>r.some(c=>String(c).trim()!==''));
+      }
+    }catch(err){
+      alert('Não consegui ler o arquivo: ' + err.message);
+      return;
+    }
+    if(!rows || rows.length < 2){ alert('Arquivo vazio ou sem linhas de dados (a primeira linha deve ser o cabeçalho).'); return; }
+    _importRows = _mapearLinhasImport(rows);
+    _renderPreviewImport();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _detectarColunas(header){
+  const idx = {};
+  header.forEach((h,i)=>{
+    const n = _norm(h);
+    if(!n) return;
+    if(n.startsWith('empresa'))                                    idx.empresa = i;
+    else if(/^(tarefa|atividade|descricao|titulo)/.test(n))        idx.tarefa = i;
+    else if(/^(responsavel|executor|dono)/.test(n))                idx.responsavel = i;
+    else if(/^(processo|nivel|categoria|fluxo)/.test(n))           idx.processo = i;
+    else if(/^(recorrencia|frequencia|periodicidade)/.test(n))     idx.recorrencia = i;
+    else if(n.startsWith('regra'))                                 idx.regra = i;
+    else if(/^dia\b/.test(n) || n==='dia')                         idx.dia = i;
+    else if(n.startsWith('mes'))                                   idx.mesAnual = i;
+    else if(n.startsWith('prazo'))                                 idx.prazo = i;
+    else if(n.startsWith('hora'))                                  idx.hora = i;
+  });
+  return idx;
+}
+
+const _MESES_IMPORT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function _mapearLinhasImport(rows){
+  const idx = _detectarColunas(rows[0]);
+  const get = (r,c)=> c===undefined ? '' : String(r[c]??'').trim();
+  return rows.slice(1).map((r,i)=>{
+    const erros = [], avisos = [];
+    const empresaRaw = get(r,idx.empresa);
+    const emp = empresas_cad.find(e=>_norm(e.codigo)===_norm(empresaRaw) || _norm(e.razao)===_norm(empresaRaw));
+    if(!empresaRaw) erros.push('Empresa vazia');
+    else if(!emp) erros.push(`Empresa "${empresaRaw}" não cadastrada`);
+
+    const tarefa = get(r,idx.tarefa);
+    if(!tarefa) erros.push('Tarefa vazia');
+
+    let responsavel = get(r,idx.responsavel);
+    const respUser = responsavel ? usuarios.find(u=>_norm(u.nome)===_norm(responsavel) && u.status==='Ativo') : null;
+    if(!responsavel) avisos.push('Sem responsável');
+    else if(!respUser) avisos.push(`Responsável "${responsavel}" não é usuário ativo`);
+    else responsavel = respUser.nome; // canonicaliza para o nome do cadastro
+
+    const processoRaw = get(r,idx.processo);
+    const nivel = processoRaw ? niveis_cad.find(n=>_norm(n.nome)===_norm(processoRaw)) : null;
+    if(processoRaw && !nivel) avisos.push(`Processo "${processoRaw}" não encontrado`);
+
+    const recorrencia = _norm(get(r,idx.recorrencia)).includes('anu') ? 'Anual' : 'Mensal';
+
+    const regraRaw = _norm(get(r,idx.regra));
+    const regra = regraRaw.includes('fim') ? 'diaUtilFim' : regraRaw.includes('util') ? 'diaUtil' : 'diaFixo';
+
+    const dia = parseInt(get(r,idx.dia));
+    if(!dia || dia<1 || dia>31) erros.push('Dia inválido');
+
+    let mesVencimento = null;
+    if(recorrencia==='Anual'){
+      const mRaw = get(r,idx.mesAnual);
+      const mNum = parseInt(mRaw);
+      if(mNum>=1 && mNum<=12) mesVencimento = mNum-1;
+      else { const mi = _MESES_IMPORT.indexOf(_norm(mRaw).slice(0,3)); if(mi>=0) mesVencimento = mi; }
+      if(mesVencimento===null) erros.push('Recorrência anual exige a coluna "Mês"');
+    }
+
+    const prazo = parseInt(get(r,idx.prazo))||0;
+    const horaRaw = get(r,idx.hora);
+    const hora = /^\d{1,2}:\d{2}/.test(horaRaw) ? horaRaw.slice(0,5).padStart(5,'0') : '';
+    if(horaRaw && !hora) avisos.push(`Hora "${horaRaw}" ignorada`);
+
+    // duplicata: já existe template com mesma tarefa+empresa
+    if(emp && tarefa && tasks.find(t=>t.isTemplate && t.empresa===emp.codigo && _norm(t.tarefa)===_norm(tarefa)))
+      erros.push('Já existe template com essa tarefa nessa empresa — linha ignorada');
+
+    return { linha: i+2, empresa: emp?.codigo||empresaRaw, tarefa, responsavel, nivelId: nivel?.id||null,
+             processoRaw, recorrencia, regra, dia, mesVencimento, prazo, hora, erros, avisos };
+  });
+}
+
+function _renderPreviewImport(){
+  const el = document.getElementById('import-preview');
+  const validas = _importRows.filter(r=>!r.erros.length);
+  const comErro = _importRows.length - validas.length;
+  const linhas = _importRows.map(r=>{
+    const status = r.erros.length ? '✕' : r.avisos.length ? '⚠' : '✓';
+    const cor    = r.erros.length ? 'var(--danger)' : r.avisos.length ? 'var(--warning)' : 'var(--success)';
+    const regraDesc = descreveRegraVenc({regraVencimento:r.regra, diaVencimento:r.dia, recorrencia:r.recorrencia, mesVencimento:r.mesVencimento});
+    const obs = [...r.erros, ...r.avisos].join(' · ');
+    return `<tr style="border-bottom:1px solid #f0f2f5">
+      <td style="color:${cor};font-weight:700;text-align:center">${status}</td>
+      <td style="font-size:12px">${r.empresa||'—'}</td>
+      <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.tarefa}">${r.tarefa||'—'}</td>
+      <td style="font-size:12px">${r.responsavel||'—'}</td>
+      <td style="font-size:12px">${r.recorrencia} · ${regraDesc}</td>
+      <td style="font-size:11px;color:${cor}">${obs||'ok'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+      ${_importRows.length} linha${_importRows.length!==1?'s':''} lida${_importRows.length!==1?'s':''} ·
+      <b style="color:var(--success)">${validas.length} válida${validas.length!==1?'s':''}</b>
+      ${comErro ? ` · <b style="color:var(--danger)">${comErro} com erro (não serão importadas)</b>` : ''}
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:2px solid #e2e8ef;text-align:left">
+        <th style="font-size:11px;padding:4px;width:28px"></th><th style="font-size:11px;padding:4px">Empresa</th>
+        <th style="font-size:11px;padding:4px">Tarefa</th><th style="font-size:11px;padding:4px">Responsável</th>
+        <th style="font-size:11px;padding:4px">Recorrência</th><th style="font-size:11px;padding:4px">Observações</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+  document.getElementById('import-btn-confirmar').disabled = !validas.length;
+  document.getElementById('import-btn-confirmar').textContent = `⬆ Importar ${validas.length} template${validas.length!==1?'s':''}`;
+}
+
+function confirmarImport(){
+  const validas = _importRows.filter(r=>!r.erros.length);
+  if(!validas.length) return;
+  validas.forEach(r=>{
+    tasks.push({
+      id: crypto.randomUUID(),
+      empresa: r.empresa, tarefa: r.tarefa, responsavel: r.responsavel||'—',
+      solicitante: '__legal__', importante: 'Sim',
+      possuiPrazo: 'Sim', dataVencimento: '', horaLimite: r.hora,
+      prazoEstimado: r.prazo, statusExecucao: '1 - Em aberto', dataConclusao: '',
+      nivelId: r.nivelId, competencia: null,
+      statusAprovacao: currentUserPerfil()==='Operacional' ? 'pendente' : null,
+      criadoPor: CURRENT_USER, motivoRejeicao: null,
+      isTemplate: true, recorrencia: r.recorrencia, regraVencimento: r.regra,
+      diaVencimento: r.dia, mesVencimento: r.mesVencimento,
+      templateId: null, mesReferencia: null,
+    });
+  });
+  save();
+  closeImportModal();
+  populateFilters();
+  setTaskView('templates');
+  alert(`${validas.length} template${validas.length!==1?'s':''} importado${validas.length!==1?'s':''}. Use "📅 Gerar mês" para criar as tarefas da competência.`);
 }
 
 function quickStart(id){

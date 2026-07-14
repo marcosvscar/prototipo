@@ -3010,16 +3010,14 @@ function setExecutorMode(mode){
 }
 
 function onEmpresaChange(){
-  const empresa = document.getElementById('f-empresa').value;
   const sel = document.getElementById('f-resp-sel');
   if(!sel) return;
-  const lista = empresa
-    ? usuarios.filter(u=>u.empresas.includes(empresa) && u.status==='Ativo')
-    : usuarios.filter(u=>u.status==='Ativo');
+  // decisão 14/07/2026: responsável pode ser qualquer usuário ativo, sem filtro por empresa
+  const cur = sel.value;
   sel.innerHTML = '<option value="">— Selecionar —</option>' +
-    lista.map(u=>`<option value="${u.nome}">${u.nome} — ${u.nivelHierarquico||u.perfil}</option>`).join('');
-  // só limpa f-resp no modo "terceiro" — em "eu", o responsável é o usuário logado e não deve ser apagado
-  if(executorMode === 'terceiro') document.getElementById('f-resp').value = '';
+    usuarios.filter(u=>u.status==='Ativo').map(u=>`<option value="${u.nome}">${u.nome} — ${u.nivelHierarquico||u.perfil}</option>`).join('');
+  sel.value = cur;
+  if(executorMode === 'terceiro') document.getElementById('f-resp').value = sel.value;
 }
 
 function openModal(id=null){
@@ -3077,14 +3075,24 @@ function openModal(id=null){
     if(!t) return;
     // na edição: oculta o toggle e mostra campos diretos
     document.getElementById('executor-toggle-wrap').style.display='none';
-    document.getElementById('f-resp-wrap-auto').style.display='';
-    document.getElementById('f-resp-wrap-sel').style.display='none';
+    // reatribuição: só Gestor/Master trocam o responsável (decisão 14/07/2026)
+    const podeReatribuir = ['Gestor','Master'].includes(currentUserPerfil());
+    document.getElementById('f-resp-wrap-auto').style.display = podeReatribuir ? 'none' : '';
+    document.getElementById('f-resp-wrap-sel').style.display  = podeReatribuir ? '' : 'none';
     document.getElementById('f-solic-wrap').style.display='';
     // empresa — seleciona no select já populado
     empSel.value = t.empresa;
-    // responsável via label read-only
+    // responsável: label read-only (Operacional) ou select (Gestor/Master)
     document.getElementById('f-resp').value = t.responsavel;
     document.getElementById('f-resp-auto-label').textContent = t.responsavel;
+    if(podeReatribuir){
+      const respSel = document.getElementById('f-resp-sel');
+      const ativos = usuarios.filter(u=>u.status==='Ativo');
+      respSel.innerHTML =
+        (ativos.find(u=>u.nome===t.responsavel) ? '' : `<option value="${t.responsavel}">${t.responsavel}</option>`) +
+        ativos.map(u=>`<option value="${u.nome}">${u.nome} — ${u.nivelHierarquico||u.perfil}</option>`).join('');
+      respSel.value = t.responsavel;
+    }
     // demais campos
     document.getElementById('f-tarefa').value=t.tarefa;
     document.getElementById('f-solic').value=t.solicitante||'';
@@ -3218,7 +3226,11 @@ function calcIndicador(){
 }
 function saveTask(){
   const emp = document.getElementById('f-empresa').value.trim();
-  const resp = document.getElementById('f-resp').value.trim();
+  let resp = document.getElementById('f-resp').value.trim();
+  // reatribuição na edição é restrita a Gestor/Master (UI já esconde o select; guarda extra)
+  if(editingId && !['Gestor','Master'].includes(currentUserPerfil())){
+    resp = findTaskById(editingId)?.responsavel || resp;
+  }
   const trf = document.getElementById('f-tarefa').value.trim();
   const faltando = [];
   if(!emp)  faltando.push('Empresa');
